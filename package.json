@@ -1,7 +1,7 @@
 {
   "name": "commitcraft-ai-smart-git-commits",
   "displayName": "CommitCraft AI: Smart Git Commits",
-  "description": "Generate editable smart Git commit messages from local changes with OpenRouter.",
+  "description": "AI-powered Git commit messages from your local changes. Review files, generate a structured message via OpenRouter, then commit, push, or undo — always with your confirmation.",
   "version": "0.1.1",
   "publisher": "CommitCraftAISmartGitCommits",
   "icon": "assets/icon.png",
@@ -12,9 +12,12 @@
   "keywords": [
     "git",
     "commit",
-    "openrouter",
     "ai",
-    "source-control"
+    "openrouter",
+    "source-control",
+    "conventional-commits",
+    "commit-message",
+    "productivity"
   ],
   "license": "MIT",
   "repository": {
