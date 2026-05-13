@@ -170,7 +170,7 @@ src/
 ```bash
 npm install
 npm run compile      # type-check + build → dist/
-npm test             # Vitest unit tests (46 tests)
+npm test             # Vitest unit tests
 npm run lint         # ESLint
 npm run format       # Prettier
 npm run vscode:test  # VS Code extension-host integration tests
