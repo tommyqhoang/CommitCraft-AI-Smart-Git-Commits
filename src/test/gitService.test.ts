@@ -114,6 +114,50 @@ describe("GitService", () => {
     }
   });
 
+  it("reports canPush:false for a detached HEAD", async () => {
+    const repoPath = await createGitRepo();
+    const service = new GitService();
+
+    try {
+      const hash = await git(repoPath, ["rev-parse", "HEAD"]);
+      await git(repoPath, ["checkout", "--detach", hash.trim()]);
+
+      const readiness = await service.getPushReadiness(repoPath);
+      expect(readiness.canPush).toBe(false);
+      expect(readiness.reason).toContain("detached HEAD");
+    } finally {
+      await rm(repoPath, { recursive: true, force: true });
+    }
+  });
+
+  it("reports canPush:false when no remote is configured", async () => {
+    const repoPath = await createGitRepo();
+    const service = new GitService();
+
+    try {
+      const readiness = await service.getPushReadiness(repoPath);
+      expect(readiness.canPush).toBe(false);
+      expect(readiness.reason).toContain("No Git remote");
+    } finally {
+      await rm(repoPath, { recursive: true, force: true });
+    }
+  });
+
+  it("reports canPush:true with branch and remote name when a remote exists", async () => {
+    const { repoPath, remotePath } = await createGitRepoWithRemote();
+    const service = new GitService();
+
+    try {
+      const readiness = await service.getPushReadiness(repoPath);
+      expect(readiness.canPush).toBe(true);
+      expect(readiness.branchName).toBeTruthy();
+      expect(readiness.remoteName).toBe("origin");
+    } finally {
+      await rm(repoPath, { recursive: true, force: true });
+      await rm(remotePath, { recursive: true, force: true });
+    }
+  });
+
   it("pushes a local commit to the remote and updates the unpushed count", async () => {
     const { repoPath, remotePath } = await createGitRepoWithRemote();
     const service = new GitService();

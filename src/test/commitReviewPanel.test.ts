@@ -345,6 +345,28 @@ describe("renderCommitAssistantHtml", () => {
     expect(html).not.toContain('id="commitAndPush" disabled');
   });
 
+  it("renders a warning when the AI response was recovered from non-JSON", () => {
+    const html = renderCommitAssistantHtml(
+      {
+        modelUsed: "openrouter/auto",
+        diffContext: baseDiffContext,
+        recovered: true,
+        recoveryReason: "unsupported commit type",
+        canPush: true,
+        message: {
+          summary: "chore: update project",
+          description: "",
+          riskLevel: "low"
+        }
+      },
+      { cspSource: "vscode-resource:", nonce: "test-nonce" }
+    );
+
+    expect(html).toContain('class="warnings"');
+    expect(html).toContain("Recovered non-JSON response");
+    expect(html).toContain("unsupported commit type");
+  });
+
   it("does not offer generation when no safe files are available", () => {
     const html = renderCommitAssistantHtml(
       {
