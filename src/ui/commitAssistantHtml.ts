@@ -748,7 +748,7 @@ function renderStatusRail(title: string, pills: string): string {
 }
 
 function renderPill(text: string, cls = ""): string {
-  return `<span class="pill ${cls}">${escapeHtml(text)}</span>`;
+  return `<span class="pill ${escapeHtml(cls)}">${escapeHtml(text)}</span>`;
 }
 
 function renderStatStrip(data: CommitAssistantData): string {
