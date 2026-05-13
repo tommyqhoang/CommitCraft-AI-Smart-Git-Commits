@@ -43,4 +43,37 @@ describe("parseCommitResponse", () => {
     expect(parsed.message.summary).toBe("chore: update project");
     expect(parsed.recoveryReason).toContain("unsupported commit type");
   });
+
+  it("accepts scoped commit types like feat(ui): without recovery", () => {
+    const parsed = parseCommitResponse(
+      JSON.stringify({
+        summary: "feat(ui): improve commit panel layout",
+        description: "Adds stat strip and timeline.",
+        riskLevel: "low"
+      })
+    );
+
+    expect(parsed.recovered).toBe(false);
+    expect(parsed.message.summary).toBe("feat(ui): improve commit panel layout");
+  });
+
+  it("accepts breaking change notation feat!: without recovery", () => {
+    const parsed = parseCommitResponse(
+      JSON.stringify({
+        summary: "feat!: drop notableFiles from commit message schema",
+        description: "Removes dead field from the AI response contract.",
+        riskLevel: "high"
+      })
+    );
+
+    expect(parsed.recovered).toBe(false);
+    expect(parsed.message.summary).toBe("feat!: drop notableFiles from commit message schema");
+  });
+
+  it("prepends chore: when plain text recovery produces a summary without a type prefix", () => {
+    const parsed = parseCommitResponse("Improve the file list rendering");
+
+    expect(parsed.recovered).toBe(true);
+    expect(parsed.message.summary).toMatch(/^chore: /);
+  });
 });

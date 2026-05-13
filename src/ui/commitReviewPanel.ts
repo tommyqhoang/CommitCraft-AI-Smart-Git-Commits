@@ -86,10 +86,19 @@ function updatePanelIfChanged(
 }
 
 function setPanelHtml(panel: vscode.WebviewPanel, data: CommitReviewData): void {
+  panel.title = getPanelTitle(data);
   panel.webview.html = renderCommitAssistantHtml(data, {
     cspSource: panel.webview.cspSource,
     nonce: getNonce()
   });
+}
+
+function getPanelTitle(data: CommitReviewData): string {
+  if (data.commitState?.status === "pushed") return "CommitCraft — Pushed";
+  if (data.commitState?.status === "pendingPush") return "CommitCraft — Ready to Push";
+  if (data.commitState?.status === "committed") return "CommitCraft — Committed";
+  if (data.message) return "CommitCraft — Review";
+  return "CommitCraft";
 }
 
 function isWebviewMessage(value: unknown): value is {

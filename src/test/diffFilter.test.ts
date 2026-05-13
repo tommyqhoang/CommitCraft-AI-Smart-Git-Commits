@@ -154,6 +154,30 @@ describe("diff safety helpers", () => {
     }
   });
 
+  it("drops stale truncation warnings when the filtered diff fits within the limit", async () => {
+    const repoPath = await createGitRepo();
+
+    try {
+      await writeFile(path.join(repoPath, "staged.txt"), `base\n${"x".repeat(1000)}\n`);
+      await writeFile(path.join(repoPath, "tracked.txt"), "base\nsmall\n");
+
+      const context = await collectDiffContext(repoPath, {
+        includeUntrackedFiles: false,
+        maxDiffCharacters: 400
+      });
+
+      expect(context.truncated).toBe(true);
+      expect(context.warnings.some((w) => w.startsWith("Diff was truncated"))).toBe(true);
+
+      const selected = filterDiffContextToFiles(context, ["tracked.txt"]);
+
+      expect(selected.truncated).toBe(false);
+      expect(selected.warnings.some((w) => w.startsWith("Diff was truncated"))).toBe(false);
+    } finally {
+      await rm(repoPath, { recursive: true, force: true });
+    }
+  });
+
   it("excludes oversized untracked text files with a visible reason", async () => {
     const repoPath = await createGitRepo();
 

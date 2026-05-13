@@ -94,8 +94,7 @@ describe("renderCommitAssistantHtml", () => {
         message: {
           summary: "feat: improve commit assistant ui",
           description: "Adds clearer stat cards and action layout.",
-          riskLevel: "low",
-          notableFiles: ["src/a.ts"]
+          riskLevel: "low"
         }
       },
       { cspSource: "vscode-resource:", nonce: "test-nonce" }
@@ -117,8 +116,7 @@ describe("renderCommitAssistantHtml", () => {
         message: {
           summary: "feat: split commit message fields",
           description: "Shows the summary separately from a longer scrollable description.",
-          riskLevel: "low",
-          notableFiles: ["src/a.ts"]
+          riskLevel: "low"
         }
       },
       { cspSource: "vscode-resource:", nonce: "test-nonce" }
@@ -146,8 +144,7 @@ describe("renderCommitAssistantHtml", () => {
         message: {
           summary: "feat: add post commit state",
           description: "Shows push and undo actions after commit.",
-          riskLevel: "low",
-          notableFiles: ["src/a.ts"]
+          riskLevel: "low"
         }
       },
       { cspSource: "vscode-resource:", nonce: "test-nonce" }
@@ -171,8 +168,7 @@ describe("renderCommitAssistantHtml", () => {
         message: {
           summary: "feat: make push visible",
           description: "Push should look available when enabled.",
-          riskLevel: "low",
-          notableFiles: ["src/a.ts"]
+          riskLevel: "low"
         }
       },
       { cspSource: "vscode-resource:", nonce: "test-nonce" }
@@ -210,8 +206,7 @@ describe("renderCommitAssistantHtml", () => {
         message: {
           summary: "feat: improve file list",
           description: "Makes the file list easier to scan.",
-          riskLevel: "low",
-          notableFiles: ["src/a.ts"]
+          riskLevel: "low"
         }
       },
       { cspSource: "vscode-resource:", nonce: "test-nonce" }
@@ -240,8 +235,7 @@ describe("renderCommitAssistantHtml", () => {
         message: {
           summary: "feat: add post commit state",
           description: "Shows push and undo actions after commit.",
-          riskLevel: "low",
-          notableFiles: ["src/a.ts"]
+          riskLevel: "low"
         }
       },
       { cspSource: "vscode-resource:", nonce: "test-nonce" }
@@ -319,8 +313,7 @@ describe("renderCommitAssistantHtml", () => {
         message: {
           summary: "feat: commit selected files",
           description: "Leaves other files available for another commit.",
-          riskLevel: "low",
-          notableFiles: ["src/a.ts"]
+          riskLevel: "low"
         }
       },
       { cspSource: "vscode-resource:", nonce: "test-nonce" }
@@ -341,8 +334,7 @@ describe("renderCommitAssistantHtml", () => {
         message: {
           summary: "feat: add assistant preview",
           description: "Adds a review step before generation.",
-          riskLevel: "low",
-          notableFiles: ["src/a.ts"]
+          riskLevel: "low"
         }
       },
       { cspSource: "vscode-resource:", nonce: "test-nonce" }

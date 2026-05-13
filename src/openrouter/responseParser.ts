@@ -1,5 +1,3 @@
-import type { ChangeStats } from "../git/changeStats";
-
 export type RiskLevel = "low" | "medium" | "high";
 
 const allowedCommitTypes = new Set([
@@ -20,8 +18,6 @@ export interface GeneratedCommitMessage {
   summary: string;
   description: string;
   riskLevel: RiskLevel;
-  changeStats?: ChangeStats;
-  notableFiles: string[];
 }
 
 export interface ParsedCommitResponse {
@@ -61,27 +57,21 @@ function validateMessage(value: unknown): GeneratedCommitMessage {
   const riskLevel: RiskLevel = ["low", "medium", "high"].includes(riskLevelValue)
     ? (riskLevelValue as RiskLevel)
     : "low";
-  const notableFilesValue = value.notableFiles;
-  const notableFiles = Array.isArray(notableFilesValue)
-    ? notableFilesValue.filter((file): file is string => typeof file === "string")
-    : [];
-
   return {
     summary,
     description,
-    riskLevel,
-    changeStats: readStats(value.changeStats),
-    notableFiles
+    riskLevel
   };
 }
 
 function recoverPlainText(content: string): GeneratedCommitMessage {
-  const [summaryLine = "chore: update project", ...descriptionLines] = content.split(/\r?\n/);
+  const [firstLine = "", ...rest] = content.split(/\r?\n/);
+  const line = firstLine.trim() || "chore: update project";
+  const hasType = /^[a-z]+(?:\([^)]*\))?!?:\s+\S/.test(line);
   return {
-    summary: normalizeSummary(summaryLine),
-    description: descriptionLines.join("\n").trim(),
-    riskLevel: "medium",
-    notableFiles: []
+    summary: normalizeSummary(hasType ? line : `chore: ${line}`),
+    description: rest.join("\n").trim(),
+    riskLevel: "medium"
   };
 }
 
@@ -89,8 +79,7 @@ function fallbackMessage(): GeneratedCommitMessage {
   return {
     summary: "chore: update project",
     description: "",
-    riskLevel: "medium",
-    notableFiles: []
+    riskLevel: "medium"
   };
 }
 
@@ -116,33 +105,13 @@ function readOptionalString(record: Record<string, unknown>, key: string): strin
   return typeof value === "string" ? value.trim() : "";
 }
 
-function readStats(value: unknown): ChangeStats | undefined {
-  if (!isRecord(value)) {
-    return undefined;
-  }
-
-  const filesChanged = readNumber(value.filesChanged);
-  const linesAdded = readNumber(value.linesAdded);
-  const linesRemoved = readNumber(value.linesRemoved);
-
-  if (filesChanged === undefined || linesAdded === undefined || linesRemoved === undefined) {
-    return undefined;
-  }
-
-  return { filesChanged, linesAdded, linesRemoved };
-}
-
-function readNumber(value: unknown): number | undefined {
-  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
-}
-
 function normalizeSummary(summary: string): string {
   const trimmed = summary.trim();
   return trimmed.length > 100 ? trimmed.slice(0, 97).trimEnd() + "..." : trimmed;
 }
 
 function validateCommitType(summary: string): void {
-  const type = /^([a-z]+):\s+\S/.exec(summary)?.[1];
+  const type = /^([a-z]+)(?:\([^)]*\))?!?:\s+\S/.exec(summary)?.[1];
   if (!type || !allowedCommitTypes.has(type)) {
     throw new Error("OpenRouter response used an unsupported commit type.");
   }

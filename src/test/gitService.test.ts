@@ -31,6 +31,17 @@ describe("GitService", () => {
     }
   });
 
+  it("returns 0 unpushed commits when no upstream and no origin/HEAD exists", async () => {
+    const repoPath = await createGitRepo();
+    const service = new GitService();
+
+    try {
+      await expect(service.getUnpushedCommitCount(repoPath)).resolves.toBe(0);
+    } finally {
+      await rm(repoPath, { recursive: true, force: true });
+    }
+  });
+
   it("undoes the last local commit while keeping changes staged", async () => {
     const repoPath = await createGitRepo();
     const service = new GitService();

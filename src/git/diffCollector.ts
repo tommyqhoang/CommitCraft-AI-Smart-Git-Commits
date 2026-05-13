@@ -155,13 +155,19 @@ export function filterDiffContextToFiles(
   const fullDiff = filterDiffBySafeFiles(context.fullDiff, files);
   const truncated = truncateDiff(fullDiff, context.maxDiffCharacters);
 
+  const warnings = context.warnings.filter((w) => !w.startsWith("Diff was truncated"));
+  if (truncated.truncated) {
+    warnings.push(`Diff was truncated to ${context.maxDiffCharacters} characters.`);
+  }
+
   return {
     ...context,
     diff: truncated.diff,
     fullDiff,
     files,
     stats: calculateChangeStats(fullDiff),
-    truncated: truncated.truncated
+    truncated: truncated.truncated,
+    warnings
   };
 }
 

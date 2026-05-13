@@ -108,12 +108,14 @@ export class GitService {
       return this.countRevisions(workspacePath, `${upstream}..HEAD`);
     }
 
-    const readiness = await this.getPushReadiness(workspacePath);
-    if (!readiness.canPush) {
+    // No tracking branch — count against origin/HEAD so new branches don't
+    // incorrectly report the entire repo history as unpushed.
+    try {
+      await this.git(workspacePath, ["rev-parse", "--verify", "refs/remotes/origin/HEAD"]);
+      return await this.countRevisions(workspacePath, "refs/remotes/origin/HEAD..HEAD");
+    } catch {
       return 0;
     }
-
-    return this.countRevisions(workspacePath, "HEAD");
   }
 
   async undoLastCommit(workspacePath: string): Promise<void> {
