@@ -66,6 +66,78 @@ describe("GitService", () => {
       await rm(repoPath, { recursive: true, force: true });
     }
   });
+
+  it("detects working tree changes and reports clean state after commit", async () => {
+    const repoPath = await createGitRepo();
+    const service = new GitService();
+
+    try {
+      expect(await service.hasChanges(repoPath)).toBe(false);
+      await writeFile(path.join(repoPath, "file.txt"), "modified\n");
+      expect(await service.hasChanges(repoPath)).toBe(true);
+      await service.commit({
+        workspacePath: repoPath,
+        message: "chore: apply modification",
+        filesToStage: ["file.txt"],
+        stageFilesBeforeCommit: true
+      });
+      expect(await service.hasChanges(repoPath)).toBe(false);
+    } finally {
+      await rm(repoPath, { recursive: true, force: true });
+    }
+  });
+
+  it("detects staged changes independently of unstaged changes", async () => {
+    const repoPath = await createGitRepo();
+    const service = new GitService();
+
+    try {
+      expect(await service.hasStagedChanges(repoPath)).toBe(false);
+      await writeFile(path.join(repoPath, "file.txt"), "unstaged change\n");
+      expect(await service.hasStagedChanges(repoPath)).toBe(false);
+      await git(repoPath, ["add", "file.txt"]);
+      expect(await service.hasStagedChanges(repoPath)).toBe(true);
+    } finally {
+      await rm(repoPath, { recursive: true, force: true });
+    }
+  });
+
+  it("returns a 7-character short hash for HEAD", async () => {
+    const repoPath = await createGitRepo();
+    const service = new GitService();
+
+    try {
+      const hash = await service.getHeadShortHash(repoPath);
+      expect(hash).toMatch(/^[0-9a-f]{7,}$/);
+    } finally {
+      await rm(repoPath, { recursive: true, force: true });
+    }
+  });
+
+  it("pushes a local commit to the remote and updates the unpushed count", async () => {
+    const { repoPath, remotePath } = await createGitRepoWithRemote();
+    const service = new GitService();
+
+    try {
+      await writeFile(path.join(repoPath, "file.txt"), "pushed content\n");
+      await service.commit({
+        workspacePath: repoPath,
+        message: "feat: add pushed content",
+        filesToStage: ["file.txt"],
+        stageFilesBeforeCommit: true
+      });
+
+      await expect(service.getUnpushedCommitCount(repoPath)).resolves.toBe(1);
+      await service.push(repoPath);
+      await expect(service.getUnpushedCommitCount(repoPath)).resolves.toBe(0);
+
+      const remoteLog = await git(remotePath, ["log", "--oneline"]);
+      expect(remoteLog).toContain("feat: add pushed content");
+    } finally {
+      await rm(repoPath, { recursive: true, force: true });
+      await rm(remotePath, { recursive: true, force: true });
+    }
+  });
 });
 
 async function createGitRepoWithRemote(): Promise<{ repoPath: string; remotePath: string }> {
