@@ -301,6 +301,23 @@ describe("renderCommitAssistantHtml", () => {
     expect(html).toContain("Generate Message");
   });
 
+  it("shows an undo button in the preview view when there are unpushed commits", () => {
+    const html = renderCommitAssistantHtml(
+      {
+        modelUsed: undefined,
+        diffContext: baseDiffContext,
+        recovered: false,
+        canPush: true,
+        pendingPushCount: 1,
+        message: undefined
+      },
+      { cspSource: "vscode-resource:", nonce: "test-nonce" }
+    );
+
+    expect(html).toContain('id="undoCommit"');
+    expect(html).toContain("Undo");
+  });
+
   it("offers to review remaining changes after a local commit leaves more worktree changes", () => {
     const html = renderCommitAssistantHtml(
       {
