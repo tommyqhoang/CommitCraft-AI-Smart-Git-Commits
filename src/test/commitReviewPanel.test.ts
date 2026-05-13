@@ -41,7 +41,24 @@ describe("renderCommitAssistantHtml", () => {
     expect(html).not.toContain('id="commit"');
   });
 
-  it("renders line stats as signed visual stat cards", () => {
+  it("renders files to summarize as compact aligned rows", () => {
+    const html = renderCommitAssistantHtml(
+      {
+        modelUsed: undefined,
+        diffContext: baseDiffContext,
+        recovered: false,
+        canPush: true,
+        message: undefined
+      },
+      { cspSource: "vscode-resource:", nonce: "test-nonce" }
+    );
+
+    expect(html).toContain('class="file-list"');
+    expect(html).toContain('class="file-checkbox"');
+    expect(html).toContain('class="file-name"');
+  });
+
+  it("renders line stats as a compact stat strip with signed values", () => {
     const html = renderCommitAssistantHtml(
       {
         modelUsed: undefined,
@@ -60,14 +77,14 @@ describe("renderCommitAssistantHtml", () => {
       { cspSource: "vscode-resource:", nonce: "test-nonce" }
     );
 
-    expect(html).toContain('class="stat-card stat-added"');
+    expect(html).toContain('class="stat-strip"');
+    expect(html).toContain('class="stat-item added"');
     expect(html).toContain("+12");
-    expect(html).toContain('class="stat-card stat-removed"');
+    expect(html).toContain('class="stat-item removed"');
     expect(html).toContain("-5");
-    expect(html).toContain('class="stat-card stat-files"');
   });
 
-  it("uses a clearer assistant shell with title, subtitle, and primary actions", () => {
+  it("uses a status rail and action bar in the generated view", () => {
     const html = renderCommitAssistantHtml(
       {
         modelUsed: "openrouter/auto",
@@ -84,10 +101,10 @@ describe("renderCommitAssistantHtml", () => {
       { cspSource: "vscode-resource:", nonce: "test-nonce" }
     );
 
-    expect(html).toContain('class="assistant-shell"');
-    expect(html).toContain("Review the generated message");
-    expect(html).toContain('class="actions action-bar"');
-    expect(html).toContain('class="primary-action"');
+    expect(html).toContain('class="status-rail"');
+    expect(html).toContain("CommitCraft Review");
+    expect(html).toContain('class="action-bar"');
+    expect(html).toContain('class="primary"');
   });
 
   it("renders generated summary and description as separate editable fields", () => {
@@ -110,7 +127,6 @@ describe("renderCommitAssistantHtml", () => {
     expect(html).toContain('id="summary"');
     expect(html).toContain('value="feat: split commit message fields"');
     expect(html).toContain('id="description"');
-    expect(html).toContain('class="description-box"');
     expect(html).toContain("Shows the summary separately");
     expect(html).toContain("function commitMessageValue()");
     expect(html).toContain("message: commitMessageValue()");
@@ -137,12 +153,77 @@ describe("renderCommitAssistantHtml", () => {
       { cspSource: "vscode-resource:", nonce: "test-nonce" }
     );
 
-    expect(html).toContain("Commit successful");
+    expect(html).toContain("Committed");
     expect(html).toContain("abc1234");
     expect(html).toContain('id="push"');
     expect(html).toContain('id="undoCommit"');
     expect(html).toContain("Undo Commit");
     expect(html).not.toContain('id="commit"');
+  });
+
+  it("renders enabled push actions with an active push style", () => {
+    const html = renderCommitAssistantHtml(
+      {
+        modelUsed: "openrouter/auto",
+        diffContext: baseDiffContext,
+        recovered: false,
+        canPush: true,
+        message: {
+          summary: "feat: make push visible",
+          description: "Push should look available when enabled.",
+          riskLevel: "low",
+          notableFiles: ["src/a.ts"]
+        }
+      },
+      { cspSource: "vscode-resource:", nonce: "test-nonce" }
+    );
+
+    expect(html).toContain('id="push" class="push-btn"');
+    expect(html).not.toContain('id="push" class="secondary"');
+  });
+
+  it("renders commit and push activity history as a timeline", () => {
+    const html = renderCommitAssistantHtml(
+      {
+        modelUsed: "openrouter/auto",
+        diffContext: baseDiffContext,
+        recovered: false,
+        canPush: true,
+        activityHistory: [
+          {
+            type: "commit",
+            title: "Committed",
+            detail: "feat: improve file list",
+            hash: "abc1234"
+          },
+          {
+            type: "push",
+            title: "Pushed",
+            detail: "main to origin",
+            hash: "abc1234"
+          }
+        ],
+        commitState: {
+          status: "pushed",
+          commitHash: "abc1234"
+        },
+        message: {
+          summary: "feat: improve file list",
+          description: "Makes the file list easier to scan.",
+          riskLevel: "low",
+          notableFiles: ["src/a.ts"]
+        }
+      },
+      { cspSource: "vscode-resource:", nonce: "test-nonce" }
+    );
+
+    expect(html).toContain("History");
+    expect(html).toContain('class="timeline"');
+    expect(html).toContain('class="timeline-item commit"');
+    expect(html).toContain('class="timeline-item push"');
+    expect(html).toContain("feat: improve file list");
+    expect(html).toContain("main to origin");
+    expect(html).toContain("abc1234");
   });
 
   it("posts undo commit actions from the committed state", () => {
@@ -196,7 +277,7 @@ describe("renderCommitAssistantHtml", () => {
       { cspSource: "vscode-resource:", nonce: "test-nonce" }
     );
 
-    expect(html).toContain("Ready to push");
+    expect(html).toContain("Ready to Push");
     expect(html).toContain("2 unpushed commits");
     expect(html).toContain('id="push"');
     expect(html).toContain("Undo Last Commit");
@@ -268,7 +349,7 @@ describe("renderCommitAssistantHtml", () => {
     );
 
     expect(html).toContain('id="commitAndPush"');
-    expect(html).toContain("Commit and Push");
+    expect(html).toContain("Commit + Push");
     expect(html).not.toContain('id="commitAndPush" disabled');
   });
 

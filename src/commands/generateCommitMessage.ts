@@ -18,6 +18,7 @@ import { OpenRouterClient } from "../openrouter/openRouterClient";
 import { parseCommitResponse, type GeneratedCommitMessage } from "../openrouter/responseParser";
 import type { CommitReviewData } from "../ui/commitReviewPanel";
 import { showCommitReviewPanel } from "../ui/commitReviewPanel";
+import type { ActivityHistoryItem } from "../ui/commitAssistantHtml";
 import { confirmAction, showInfo, showPlainError, showRetryableError } from "../ui/notifications";
 
 export interface GenerateCommandDependencies {
@@ -85,6 +86,7 @@ export async function generateCommitMessage(
           let generatedModelUsed: string | undefined;
           let generatedRecovered = false;
           let generatedRecoveryReason: string | undefined;
+          const activityHistory: ActivityHistoryItem[] = [];
 
           const panel = showCommitReviewPanel(
             {
@@ -94,6 +96,7 @@ export async function generateCommitMessage(
               recovered: false,
               pendingPushCount: initialUnpushedCommitCount,
               canReviewChanges: hasChanges && currentDiffContext.files.length > 0,
+              activityHistory,
               commitState:
                 initialUnpushedCommitCount > 0 && currentDiffContext.files.length === 0
                   ? {
@@ -163,7 +166,8 @@ export async function generateCommitMessage(
                   recoveryReason: parsed.recoveryReason,
                   canPush: pushReadiness.canPush,
                   pushDisabledReason: pushReadiness.canPush ? undefined : pushReadiness.reason,
-                  pendingPushCount: await gitService.getUnpushedCommitCount(workspacePath)
+                  pendingPushCount: await gitService.getUnpushedCommitCount(workspacePath),
+                  activityHistory
                 };
               },
               commit: async (message) => {
@@ -178,7 +182,7 @@ export async function generateCommitMessage(
                   return undefined;
                 }
 
-                return buildPostCommitData(
+                const data = await buildPostCommitData(
                   gitService,
                   workspacePath,
                   "committed",
@@ -191,14 +195,21 @@ export async function generateCommitMessage(
                     generatedRecoveryReason
                   })
                 );
+                activityHistory.push(
+                  createActivityItem("commit", "Committed", message, data.commitState?.commitHash)
+                );
+                return {
+                  ...data,
+                  activityHistory
+                };
               },
               push: async () => {
                 const pushed = await pushWithConfirmation(gitService, workspacePath);
-                if (!pushed) {
+                if (!pushed.pushed) {
                   return undefined;
                 }
 
-                return buildPostCommitData(
+                const data = await buildPostCommitData(
                   gitService,
                   workspacePath,
                   "pushed",
@@ -211,6 +222,18 @@ export async function generateCommitMessage(
                     generatedRecoveryReason
                   })
                 );
+                activityHistory.push(
+                  createActivityItem(
+                    "push",
+                    "Pushed",
+                    formatPushActivityDetail(pushed),
+                    data.commitState?.commitHash
+                  )
+                );
+                return {
+                  ...data,
+                  activityHistory
+                };
               },
               commitAndPush: async (message) => {
                 const committed = await commitReviewedMessage(
@@ -233,18 +256,38 @@ export async function generateCommitMessage(
                   generatedRecoveryReason
                 });
                 const pushed = await pushWithConfirmation(gitService, workspacePath);
-                return buildPostCommitData(
+                const data = await buildPostCommitData(
                   gitService,
                   workspacePath,
-                  pushed ? "pushed" : "committed",
+                  pushed.pushed ? "pushed" : "committed",
                   generatedData
                 );
+                activityHistory.push(
+                  createActivityItem("commit", "Committed", message, data.commitState?.commitHash)
+                );
+                if (pushed.pushed) {
+                  activityHistory.push(
+                    createActivityItem(
+                      "push",
+                      "Pushed",
+                      formatPushActivityDetail(pushed),
+                      data.commitState?.commitHash
+                    )
+                  );
+                }
+                return {
+                  ...data,
+                  activityHistory
+                };
               },
               undoCommit: async () => {
                 const undone = await undoCommitWithConfirmation(gitService, workspacePath);
                 if (!undone) {
                   return undefined;
                 }
+                activityHistory.push(
+                  createActivityItem("undo", "Undid Commit", "Changes kept staged.")
+                );
 
                 currentDiffContext = await collectDiffContext(workspacePath, {
                   includeUntrackedFiles: settings.includeUntrackedFiles,
@@ -269,6 +312,7 @@ export async function generateCommitMessage(
                     : nextPushReadiness.reason,
                   pendingPushCount,
                   canReviewChanges: currentDiffContext.files.length > 0,
+                  activityHistory,
                   recovered: false
                 };
               },
@@ -302,6 +346,7 @@ export async function generateCommitMessage(
                     ? undefined
                     : nextPushReadiness.reason,
                   pendingPushCount,
+                  activityHistory,
                   recovered: false
                 };
               }
@@ -435,11 +480,11 @@ async function commitReviewedMessage(
 async function pushWithConfirmation(
   gitService: GitService,
   workspacePath: string
-): Promise<boolean> {
+): Promise<PushActionResult> {
   const readiness = await gitService.getPushReadiness(workspacePath);
   if (!readiness.canPush) {
     await showPlainError(readiness.reason ?? "This branch cannot be pushed.");
-    return false;
+    return { pushed: false };
   }
 
   if (
@@ -448,12 +493,16 @@ async function pushWithConfirmation(
       "Push"
     ))
   ) {
-    return false;
+    return { pushed: false };
   }
 
   await gitService.push(workspacePath);
   await showInfo("Branch pushed.");
-  return true;
+  return {
+    pushed: true,
+    branchName: readiness.branchName,
+    remoteName: readiness.remoteName ?? "origin"
+  };
 }
 
 async function undoCommitWithConfirmation(
@@ -487,6 +536,34 @@ function createEmptyDiffContext(): DiffContext {
     warnings: [],
     maxDiffCharacters: 0
   };
+}
+
+interface PushActionResult {
+  pushed: boolean;
+  branchName?: string;
+  remoteName?: string;
+}
+
+function createActivityItem(
+  type: ActivityHistoryItem["type"],
+  title: string,
+  detail?: string,
+  hash?: string
+): ActivityHistoryItem {
+  return {
+    type,
+    title,
+    detail: detail?.trim(),
+    hash
+  };
+}
+
+function formatPushActivityDetail(result: PushActionResult): string {
+  if (result.branchName && result.remoteName) {
+    return `${result.branchName} to ${result.remoteName}`;
+  }
+
+  return "Branch pushed.";
 }
 
 function formatError(error: unknown): string {
