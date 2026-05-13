@@ -8,9 +8,9 @@ describe("OpenRouterClient", () => {
       .fn()
       .mockResolvedValueOnce({
         ok: false,
-        status: 401,
-        statusText: "Unauthorized",
-        text: async () => "invalid token"
+        status: 503,
+        statusText: "Service Unavailable",
+        text: async () => "model unavailable"
       })
       .mockResolvedValueOnce({
         ok: true,
@@ -34,5 +34,26 @@ describe("OpenRouterClient", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(fetchMock.mock.calls[0]?.[1]?.headers.Authorization).toBe("Bearer secret-token");
     expect(fetchMock.mock.calls[0]?.[1]?.body).toContain("openrouter/auto");
+  });
+
+  it("does not retry with the fallback model when the token is unauthorized", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce({
+      ok: false,
+      status: 401,
+      statusText: "Unauthorized",
+      text: async () => "invalid token"
+    });
+    const client = new OpenRouterClient(fetchMock);
+
+    await expect(
+      client.generateCommitMessage({
+        token: "secret-token",
+        model: "openrouter/auto",
+        fallbackModel: "openrouter/free",
+        prompt: "prompt text"
+      })
+    ).rejects.toThrow("OpenRouter returned 401");
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

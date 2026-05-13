@@ -1,5 +1,7 @@
 .git/**
+.gitignore
 .vscode/**
+AGENTS.md
 node_modules/**
 .vscode-test/**
 src/**

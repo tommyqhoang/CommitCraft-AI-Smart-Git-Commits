@@ -1,12 +1,12 @@
-# ai-commit-vscode-extension
+# CommitCraft-AI-Smart-Git-Commits
 
-ai-commit-vscode-extension is a simple Visual Studio Code extension for turning local code changes into clear Git commits. It reviews the current Git diff, uses OpenRouter to draft a commit summary and description, then lets the user commit and push to GitHub from a polished VS Code UI.
+CommitCraft-AI-Smart-Git-Commits is a simple Visual Studio Code extension for turning local code changes into clear Git commits. It reviews the current Git diff, uses OpenRouter to draft a commit summary and description, then lets the user commit and push to GitHub from a polished VS Code UI.
 
 The goal is not to replace developer judgment. The extension should make the commit workflow faster, clearer, and safer while keeping the user in control before anything is committed or pushed.
 
 ## Core Features
 
-- Generate an AI commit summary from the current Git diff.
+- Generate a smart commit summary from the current Git diff.
 - Generate a longer commit description explaining the intent and important changes.
 - Show simple change stats before commit: total files changed, total lines added, and total lines removed.
 - Let the user review and edit the generated commit message before committing.
@@ -18,18 +18,18 @@ The goal is not to replace developer judgment. The extension should make the com
 
 ## User Experience
 
-ai-commit-vscode-extension should feel like a native VS Code tool.
+CommitCraft-AI-Smart-Git-Commits should feel like a native VS Code tool.
 
 The main workflow should be available from:
 
 - Source Control view action button.
-- Command Palette command: `AI Commit: Generate Commit Message`.
+- Command Palette command: `CommitCraft: Generate Smart Git Commit`.
 - Optional status bar item when the workspace has Git changes.
 
 Recommended flow:
 
 1. User opens a Git workspace with local changes.
-2. User clicks **Generate AI Commit**.
+2. User clicks **Generate Smart Git Commit**.
 3. Extension reads the current Git diff.
 4. Extension sends a compact prompt to OpenRouter.
 5. UI displays:
@@ -55,11 +55,11 @@ Recommended defaults:
 
 ```json
 {
-  "aiCommit.openRouterModel": "openrouter/auto",
-  "aiCommit.fallbackModel": "openrouter/free",
-  "aiCommit.maxDiffCharacters": 60000,
-  "aiCommit.includeUntrackedFiles": true,
-  "aiCommit.autoPushAfterCommit": false
+  "commitCraft.openRouterModel": "openrouter/auto",
+  "commitCraft.fallbackModel": "openrouter/free",
+  "commitCraft.maxDiffCharacters": 60000,
+  "commitCraft.includeUntrackedFiles": true,
+  "commitCraft.autoPushAfterCommit": false
 }
 ```
 
@@ -68,8 +68,8 @@ Token handling:
 - Prefer VS Code `SecretStorage` for the OpenRouter API token.
 - Never store API tokens in the workspace.
 - Never log API tokens.
-- Provide a command: `AI Commit: Set OpenRouter API Token`.
-- Provide a command: `AI Commit: Clear OpenRouter API Token`.
+- Provide a command: `CommitCraft: Set OpenRouter API Token`.
+- Provide a command: `CommitCraft: Clear OpenRouter API Token`.
 
 ## Commit Message Style
 
@@ -123,7 +123,7 @@ The model should return structured JSON:
 
 ```json
 {
-  "summary": "feat: add ai commit workflow",
+  "summary": "feat: add smart commit workflow",
   "description": "Adds the VS Code command, OpenRouter request flow, and commit review UI.",
   "riskLevel": "low",
   "changeStats": {
@@ -139,20 +139,20 @@ The extension should validate the response before showing it. If JSON parsing fa
 
 ## Safety Rules
 
-ai-commit-vscode-extension must be safe by default.
+CommitCraft-AI-Smart-Git-Commits must be safe by default.
 
 - Do not commit without an explicit user action.
 - Do not push without an explicit user action.
 - Do not send ignored files, secrets, `.env` files, or binary file contents to OpenRouter.
 - Respect `.gitignore`.
 - Prefer staged changes. If nothing is staged, explain that the extension will summarize unstaged changes.
-- Warn when the diff is truncated because it exceeds `aiCommit.maxDiffCharacters`.
+- Warn when the diff is truncated because it exceeds `commitCraft.maxDiffCharacters`.
 - Show OpenRouter errors in plain language with a retry option.
 - Handle missing Git, missing remote, detached HEAD, and no-change states gracefully.
 
-## Planned Architecture
+## Architecture
 
-Recommended implementation stack:
+Implementation stack:
 
 - TypeScript
 - VS Code Extension API
@@ -161,10 +161,10 @@ Recommended implementation stack:
 - ESLint and Prettier for code quality
 - Vitest or VS Code extension tests for unit coverage
 
-Suggested structure:
+Current structure:
 
 ```text
-ai-commit-vscode-extension/
+CommitCraft-AI-Smart-Git-Commits/
   src/
     extension.ts
     commands/
@@ -175,7 +175,6 @@ ai-commit-vscode-extension/
       gitService.ts
       diffCollector.ts
       changeStats.ts
-      remoteService.ts
     openrouter/
       openRouterClient.ts
       commitPrompt.ts
@@ -211,7 +210,7 @@ Key boundaries:
 - Avoid modal-heavy flows except for confirmation before commit and push.
 - Match VS Code theme colors and accessibility expectations.
 
-## Quality Bar
+## Release Quality
 
 Before release, the project should include:
 
@@ -224,7 +223,7 @@ Before release, the project should include:
 - Manual test checklist for the VS Code Extension Development Host.
 - Clear marketplace-ready extension metadata.
 - No hardcoded API tokens.
-- No unfinished task markers or placeholder implementation paths in released code.
+- No unfinished task markers or incomplete implementation paths in released code.
 
 ## Development
 
@@ -264,8 +263,8 @@ Manual release checks live in [`docs/MANUAL_QA.md`](docs/MANUAL_QA.md).
 - Fully autonomous pushes.
 - Rewriting user code.
 - Replacing pull request descriptions.
-- Supporting every Git hosting provider in the first version.
+- Managing provider-specific pull request or issue workflows.
 
 ## License
 
-Choose a license before publishing. MIT is recommended for a simple developer tool unless there is a reason to restrict reuse.
+This project is licensed under the MIT License.

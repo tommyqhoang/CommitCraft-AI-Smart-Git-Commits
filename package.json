@@ -1,85 +1,97 @@
 {
-  "name": "ai-commit-vscode-extension",
-  "displayName": "AI Commit",
-  "description": "Generate editable AI commit messages from Git changes with OpenRouter.",
-  "version": "0.1.0",
-  "publisher": "local-dev",
+  "name": "commitcraft-ai-smart-git-commits",
+  "displayName": "CommitCraft AI: Smart Git Commits",
+  "description": "Generate editable smart Git commit messages from local changes with OpenRouter.",
+  "version": "0.1.1",
+  "publisher": "CommitCraftAISmartGitCommits",
+  "icon": "assets/icon.png",
+  "galleryBanner": {
+    "color": "#111827",
+    "theme": "dark"
+  },
+  "keywords": [
+    "git",
+    "commit",
+    "openrouter",
+    "ai",
+    "source-control"
+  ],
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/tommyqhoang/ai-commit-vscode-extension.git"
+    "url": "https://github.com/tommyqhoang/CommitCraft-AI-Smart-Git-Commits.git"
   },
   "bugs": {
-    "url": "https://github.com/tommyqhoang/ai-commit-vscode-extension/issues"
+    "url": "https://github.com/tommyqhoang/CommitCraft-AI-Smart-Git-Commits/issues"
   },
-  "homepage": "https://github.com/tommyqhoang/ai-commit-vscode-extension#readme",
+  "homepage": "https://github.com/tommyqhoang/CommitCraft-AI-Smart-Git-Commits#readme",
   "engines": {
     "vscode": "^1.96.0"
   },
   "categories": [
-    "Source Control",
+    "SCM Providers",
     "Other"
   ],
   "activationEvents": [
-    "onCommand:aiCommit.generateCommitMessage",
-    "onCommand:aiCommit.setOpenRouterToken",
-    "onCommand:aiCommit.clearOpenRouterToken"
+    "onCommand:commitCraft.generateCommitMessage",
+    "onCommand:commitCraft.setOpenRouterToken",
+    "onCommand:commitCraft.clearOpenRouterToken"
   ],
   "main": "./dist/extension.js",
   "contributes": {
     "commands": [
       {
-        "command": "aiCommit.generateCommitMessage",
-        "title": "AI Commit: Generate Commit Message",
-        "category": "AI Commit",
+        "command": "commitCraft.generateCommitMessage",
+        "title": "CommitCraft: Generate Smart Git Commit",
+        "category": "CommitCraft",
         "icon": "$(sparkle)"
       },
       {
-        "command": "aiCommit.setOpenRouterToken",
-        "title": "AI Commit: Set OpenRouter API Token",
-        "category": "AI Commit"
+        "command": "commitCraft.setOpenRouterToken",
+        "title": "CommitCraft: Set OpenRouter API Token",
+        "category": "CommitCraft"
       },
       {
-        "command": "aiCommit.clearOpenRouterToken",
-        "title": "AI Commit: Clear OpenRouter API Token",
-        "category": "AI Commit"
+        "command": "commitCraft.clearOpenRouterToken",
+        "title": "CommitCraft: Clear OpenRouter API Token",
+        "category": "CommitCraft"
       }
     ],
     "configuration": {
-      "title": "AI Commit",
+      "title": "CommitCraft",
       "properties": {
-        "aiCommit.openRouterModel": {
+        "commitCraft.openRouterModel": {
           "type": "string",
           "default": "openrouter/auto",
           "description": "OpenRouter model used to generate commit messages."
         },
-        "aiCommit.fallbackModel": {
+        "commitCraft.fallbackModel": {
           "type": "string",
           "default": "openrouter/free",
           "description": "Fallback OpenRouter model used when the primary model fails."
         },
-        "aiCommit.maxDiffCharacters": {
+        "commitCraft.maxDiffCharacters": {
           "type": "number",
           "default": 60000,
           "minimum": 1000,
           "description": "Maximum diff characters sent to OpenRouter before truncation."
         },
-        "aiCommit.includeUntrackedFiles": {
+        "commitCraft.includeUntrackedFiles": {
           "type": "boolean",
           "default": true,
-          "description": "Include safe untracked text files in AI commit context."
+          "description": "Include safe untracked text files in CommitCraft prompt context."
         },
-        "aiCommit.autoPushAfterCommit": {
+        "commitCraft.showCommitAndPush": {
           "type": "boolean",
           "default": false,
-          "description": "Offer Commit and Push as a one-step action after review."
+          "description": "Show the Commit and Push button in the review panel (requires a configured remote)."
         }
       }
     },
     "menus": {
       "scm/title": [
         {
-          "command": "aiCommit.generateCommitMessage",
+          "command": "commitCraft.generateCommitMessage",
           "group": "navigation"
         }
       ]
@@ -94,10 +106,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "vscode:test": "npm run compile && node ./dist/test/runTest.js",
-    "package": "vsce package --no-dependencies"
+    "package": "npm run compile && vsce package --no-dependencies"
   },
   "devDependencies": {
-    "@types/mocha": "^10.0.10",
     "@types/node": "^22.10.2",
     "@types/vscode": "^1.96.0",
     "@typescript-eslint/eslint-plugin": "^8.18.1",
@@ -105,9 +116,8 @@
     "@vscode/test-electron": "^2.4.1",
     "@vscode/vsce": "^3.2.1",
     "eslint": "^9.17.0",
-    "mocha": "^11.7.5",
     "prettier": "^3.4.2",
     "typescript": "^5.7.2",
-    "vitest": "^2.1.8"
+    "vitest": "^4.1.6"
   }
 }

@@ -39,6 +39,10 @@ export class OpenRouterClient {
     try {
       return await this.requestModel(request, request.model);
     } catch (primaryError) {
+      if (isNonRetryableOpenRouterError(primaryError)) {
+        throw primaryError;
+      }
+
       if (request.fallbackModel === request.model) {
         throw primaryError;
       }
@@ -64,8 +68,8 @@ export class OpenRouterClient {
       headers: {
         Authorization: `Bearer ${request.token}`,
         "Content-Type": "application/json",
-        "HTTP-Referer": "https://github.com/local-dev/ai-commit-vscode-extension",
-        "X-Title": "AI Commit VS Code Extension"
+        "HTTP-Referer": "https://github.com/tommyqhoang/CommitCraft-AI-Smart-Git-Commits",
+        "X-Title": "CommitCraft AI Smart Git Commits"
       },
       body: JSON.stringify({
         model,
@@ -81,8 +85,10 @@ export class OpenRouterClient {
     });
 
     if (!response.ok) {
-      const details = response.text ? await response.text() : response.statusText;
-      throw new Error(`OpenRouter returned ${response.status}: ${details || response.statusText}`);
+      const message = formatHttpError(response.status, response.statusText, response.text
+        ? await response.text()
+        : undefined);
+      throw new OpenRouterHttpError(response.status, message);
     }
 
     const body = parseChatResponse(await response.json());
@@ -108,4 +114,36 @@ function parseChatResponse(value: unknown): OpenRouterChatResponse {
 
 function formatError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function formatHttpError(status: number, statusText: string, body?: string): string {
+  // For auth errors, never include response body — it may echo back the Authorization header.
+  if (status === 401 || status === 403) {
+    return `OpenRouter returned ${status}: ${statusText} (authentication error — check your API token)`;
+  }
+
+  if (!body) {
+    return `OpenRouter returned ${status}: ${statusText}`;
+  }
+
+  const sanitized = body
+    .replace(/Bearer\s+[A-Za-z0-9._-]+/gi, "Bearer [REDACTED]")
+    .replace(/\r?\n/g, " ")
+    .trim();
+  const truncated = sanitized.length <= 800 ? sanitized : `${sanitized.slice(0, 797)}...`;
+  return `OpenRouter returned ${status}: ${truncated}`;
+}
+
+function isNonRetryableOpenRouterError(error: unknown): boolean {
+  return error instanceof OpenRouterHttpError && [401, 403].includes(error.status);
+}
+
+class OpenRouterHttpError extends Error {
+  constructor(
+    readonly status: number,
+    message: string
+  ) {
+    super(message);
+    this.name = "OpenRouterHttpError";
+  }
 }

@@ -50,8 +50,12 @@ export class GitService {
       .then((value) => value.trim())
       .catch(() => "");
     const remotes = await this.git(workspacePath, ["remote"]);
+    const remoteList = remotes
+      .split(/\r?\n/)
+      .map((remote) => remote.trim())
+      .filter(Boolean);
 
-    if (remoteName.length === 0 && remotes.trim().length === 0) {
+    if (remoteName.length === 0 && remoteList.length === 0) {
       return {
         canPush: false,
         reason: "No Git remote is configured for this repository.",
@@ -62,7 +66,7 @@ export class GitService {
     return {
       canPush: true,
       branchName,
-      remoteName: remoteName || remotes.trim().split(/\r?\n/)[0]
+      remoteName: remoteName || remoteList[0]
     };
   }
 

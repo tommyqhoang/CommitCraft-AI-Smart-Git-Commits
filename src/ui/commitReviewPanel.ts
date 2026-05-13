@@ -1,3 +1,5 @@
+import { randomBytes } from "node:crypto";
+
 import * as vscode from "vscode";
 
 import type { DiffContext } from "../git/diffCollector";
@@ -10,7 +12,8 @@ export interface CommitReviewData {
   recovered: boolean;
   recoveryReason?: string;
   canPush: boolean;
-  autoPushAfterCommit: boolean;
+  pushDisabledReason?: string;
+  showCommitAndPush: boolean;
 }
 
 export interface CommitReviewHandlers {
@@ -22,34 +25,54 @@ export interface CommitReviewHandlers {
 export function showCommitReviewPanel(
   data: CommitReviewData,
   handlers: CommitReviewHandlers
-): void {
+): vscode.WebviewPanel {
   const panel = vscode.window.createWebviewPanel(
-    "aiCommit.review",
-    "AI Commit Review",
+    "commitCraft.review",
+    "CommitCraft Review",
     vscode.ViewColumn.One,
     {
       enableScripts: true,
-      retainContextWhenHidden: true
+      retainContextWhenHidden: true,
+      localResourceRoots: []
     }
   );
 
   panel.webview.html = renderHtml(panel.webview, data);
-  panel.webview.onDidReceiveMessage((message: unknown) => {
-    void handleMessage(message, handlers);
+  let isActionInProgress = false;
+  const messageListener = panel.webview.onDidReceiveMessage((message: unknown) => {
+    if (isActionInProgress) {
+      return;
+    }
+
+    isActionInProgress = true;
+    void handleMessage(message, handlers, panel).finally(() => {
+      isActionInProgress = false;
+    });
   });
+  panel.onDidDispose(() => messageListener.dispose());
+  return panel;
 }
 
-async function handleMessage(message: unknown, handlers: CommitReviewHandlers): Promise<void> {
+async function handleMessage(
+  message: unknown,
+  handlers: CommitReviewHandlers,
+  panel: vscode.WebviewPanel
+): Promise<void> {
   if (!isWebviewMessage(message)) {
     return;
   }
 
-  if (message.command === "commit") {
-    await handlers.commit(message.message);
-  } else if (message.command === "push") {
-    await handlers.push();
-  } else if (message.command === "commitAndPush") {
-    await handlers.commitAndPush(message.message);
+  try {
+    if (message.command === "commit") {
+      await handlers.commit(message.message);
+    } else if (message.command === "push") {
+      await handlers.push();
+    } else if (message.command === "commitAndPush") {
+      await handlers.commitAndPush(message.message);
+    }
+  } catch (err) {
+    const errorText = err instanceof Error ? err.message : String(err);
+    void panel.webview.postMessage({ command: "error", text: errorText });
   }
 }
 
@@ -65,6 +88,9 @@ function renderHtml(webview: vscode.Webview, data: CommitReviewData): string {
     warnings.length > 0
       ? `<section class="warnings">${warnings.map((warning) => `<p>${escapeHtml(warning)}</p>`).join("")}</section>`
       : "";
+  const pushTitle = data.canPush
+    ? "Push the current branch"
+    : (data.pushDisabledReason ?? "Push is unavailable for this repository state");
   const csp = [
     "default-src 'none'",
     `style-src ${webview.cspSource} 'unsafe-inline'`,
@@ -77,7 +103,7 @@ function renderHtml(webview: vscode.Webview, data: CommitReviewData): string {
   <meta charset="UTF-8">
   <meta http-equiv="Content-Security-Policy" content="${csp}">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AI Commit Review</title>
+  <title>CommitCraft Review</title>
   <style>
     body { color: var(--vscode-foreground); background: var(--vscode-editor-background); font-family: var(--vscode-font-family); margin: 0; padding: 20px; }
     main { max-width: 920px; margin: 0 auto; display: grid; gap: 16px; }
@@ -93,11 +119,12 @@ function renderHtml(webview: vscode.Webview, data: CommitReviewData): string {
     .actions { display: flex; flex-wrap: wrap; gap: 8px; }
     .warnings { border-left: 3px solid var(--vscode-editorWarning-foreground); padding-left: 10px; color: var(--vscode-editorWarning-foreground); }
     .files { max-height: 180px; overflow: auto; border: 1px solid var(--vscode-panel-border); padding: 8px; }
+    .muted { color: var(--vscode-descriptionForeground); margin: 0; }
   </style>
 </head>
 <body>
   <main>
-    <h1>AI Commit Review</h1>
+    <h1>CommitCraft Review</h1>
     ${warningHtml}
     <section>
       <label for="message">Commit message</label>
@@ -119,20 +146,36 @@ function renderHtml(webview: vscode.Webview, data: CommitReviewData): string {
     </section>
     <section class="actions">
       <button id="commit">Commit</button>
-      <button id="push" class="secondary" ${data.canPush ? "" : "disabled"}>Push</button>
-      <button id="commitAndPush" ${data.canPush && data.autoPushAfterCommit ? "" : "disabled"}>Commit and Push</button>
+      <button id="push" class="secondary" title="${escapeHtml(pushTitle)}" ${data.canPush ? "" : "disabled"}>Push</button>
+      <button id="commitAndPush" title="${escapeHtml(pushTitle)}" ${data.canPush ? "" : "disabled"}>Commit and Push</button>
     </section>
+    ${data.canPush ? "" : `<p class="muted">${escapeHtml(pushTitle)}</p>`}
+    <p id="error" role="alert" style="color: var(--vscode-errorForeground); display: none;"></p>
   </main>
   <script nonce="${nonce}">
     const vscode = acquireVsCodeApi();
     const message = document.getElementById("message");
+    const errorEl = document.getElementById("error");
+    function showError(text) {
+      errorEl.textContent = text;
+      errorEl.style.display = "block";
+    }
+    window.addEventListener("message", (event) => {
+      const msg = event.data;
+      if (msg && msg.command === "error") {
+        showError(msg.text);
+      }
+    });
     document.getElementById("commit").addEventListener("click", () => {
+      errorEl.style.display = "none";
       vscode.postMessage({ command: "commit", message: message.value });
     });
     document.getElementById("push").addEventListener("click", () => {
+      errorEl.style.display = "none";
       vscode.postMessage({ command: "push", message: message.value });
     });
     document.getElementById("commitAndPush").addEventListener("click", () => {
+      errorEl.style.display = "none";
       vscode.postMessage({ command: "commitAndPush", message: message.value });
     });
   </script>
@@ -161,10 +204,5 @@ function escapeHtml(value: string): string {
 }
 
 function getNonce(): string {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  let nonce = "";
-  for (let index = 0; index < 32; index += 1) {
-    nonce += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return nonce;
+  return randomBytes(16).toString("hex"); // 32 hex chars, CSPRNG
 }

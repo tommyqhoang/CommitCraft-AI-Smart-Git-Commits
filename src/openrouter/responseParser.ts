@@ -2,6 +2,20 @@ import type { ChangeStats } from "../git/changeStats";
 
 export type RiskLevel = "low" | "medium" | "high";
 
+const allowedCommitTypes = new Set([
+  "feat",
+  "fix",
+  "docs",
+  "refactor",
+  "test",
+  "chore",
+  "build",
+  "ci",
+  "style",
+  "perf",
+  "revert"
+]);
+
 export interface GeneratedCommitMessage {
   summary: string;
   description: string;
@@ -26,7 +40,7 @@ export function parseCommitResponse(content: string): ParsedCommitResponse {
       recovered: false
     };
   } catch (error) {
-    const recovered = recoverPlainText(trimmed);
+    const recovered = looksLikeJson(trimmed) ? fallbackMessage() : recoverPlainText(trimmed);
     return {
       message: recovered,
       recovered: true,
@@ -40,7 +54,8 @@ function validateMessage(value: unknown): GeneratedCommitMessage {
     throw new Error("OpenRouter response was not a JSON object.");
   }
 
-  const summary = readRequiredString(value, "summary");
+  const summary = normalizeSummary(readRequiredString(value, "summary"));
+  validateCommitType(summary);
   const description = readOptionalString(value, "description");
   const riskLevelValue = readOptionalString(value, "riskLevel") || "low";
   const riskLevel: RiskLevel = ["low", "medium", "high"].includes(riskLevelValue)
@@ -52,7 +67,7 @@ function validateMessage(value: unknown): GeneratedCommitMessage {
     : [];
 
   return {
-    summary: normalizeSummary(summary),
+    summary,
     description,
     riskLevel,
     changeStats: readStats(value.changeStats),
@@ -70,9 +85,22 @@ function recoverPlainText(content: string): GeneratedCommitMessage {
   };
 }
 
+function fallbackMessage(): GeneratedCommitMessage {
+  return {
+    summary: "chore: update project",
+    description: "",
+    riskLevel: "medium",
+    notableFiles: []
+  };
+}
+
 function stripCodeFence(content: string): string {
   const fenceMatch = /^```(?:json)?\s*([\s\S]*?)\s*```$/i.exec(content);
   return fenceMatch?.[1]?.trim() ?? content;
+}
+
+function looksLikeJson(content: string): boolean {
+  return content.startsWith("{") || content.startsWith("[");
 }
 
 function readRequiredString(record: Record<string, unknown>, key: string): string {
@@ -111,6 +139,13 @@ function readNumber(value: unknown): number | undefined {
 function normalizeSummary(summary: string): string {
   const trimmed = summary.trim();
   return trimmed.length > 100 ? trimmed.slice(0, 97).trimEnd() + "..." : trimmed;
+}
+
+function validateCommitType(summary: string): void {
+  const type = /^([a-z]+):\s+\S/.exec(summary)?.[1];
+  if (!type || !allowedCommitTypes.has(type)) {
+    throw new Error("OpenRouter response used an unsupported commit type.");
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

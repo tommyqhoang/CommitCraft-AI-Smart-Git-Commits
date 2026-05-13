@@ -3,21 +3,26 @@ export interface AiCommitSettings {
   fallbackModel: string;
   maxDiffCharacters: number;
   includeUntrackedFiles: boolean;
-  autoPushAfterCommit: boolean;
+  showCommitAndPush: boolean;
 }
 
 export interface ConfigReader {
   get<T>(key: string): T | undefined;
 }
 
-export const openRouterTokenSecretKey = "aiCommit.openRouterToken";
+export const openRouterTokenSecretKey = "commitCraft.openRouterToken";
 
 export function readSettingsFromConfig(config: ConfigReader): AiCommitSettings {
   return {
-    openRouterModel: config.get<string>("openRouterModel") ?? "openrouter/auto",
-    fallbackModel: config.get<string>("fallbackModel") ?? "openrouter/free",
-    maxDiffCharacters: config.get<number>("maxDiffCharacters") ?? 60000,
+    openRouterModel: readNonEmptyString(config, "openRouterModel", "openrouter/auto"),
+    fallbackModel: readNonEmptyString(config, "fallbackModel", "openrouter/free"),
+    maxDiffCharacters: Math.max(1000, config.get<number>("maxDiffCharacters") ?? 60000),
     includeUntrackedFiles: config.get<boolean>("includeUntrackedFiles") ?? true,
-    autoPushAfterCommit: config.get<boolean>("autoPushAfterCommit") ?? false
+    showCommitAndPush: config.get<boolean>("showCommitAndPush") ?? false  // enables the Commit and Push button
   };
+}
+
+function readNonEmptyString(config: ConfigReader, key: string, fallback: string): string {
+  const value = config.get<string>(key);
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : fallback;
 }

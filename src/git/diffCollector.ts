@@ -1,5 +1,6 @@
 import { execFile } from "node:child_process";
 import { stat } from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 
@@ -11,6 +12,7 @@ const unsafeFilePatterns = [
   /^\.env(?:\.|$)/i,
   /(^|\/)\.env(?:\.|$)/i,
   /(^|\/)(?:secret|secrets|credential|credentials|token|tokens)(?:\/|\.|$)/i,
+  /\.(?:key|pem|p12|pfx|crt|cer|der)$/i,
   /\.(?:png|jpe?g|gif|webp|avif|ico|pdf|zip|gz|tar|tgz|7z|mp4|mov|mp3|wav|woff2?|ttf|otf)$/i,
   /(?:^|\/)(?:package-lock\.json|pnpm-lock\.yaml|yarn\.lock)$/i
 ];
@@ -61,10 +63,12 @@ export async function collectDiffContext(
   const stagedDiff = await git(workspacePath, ["diff", "--cached", "--no-ext-diff", "--"]);
   const hasStaged = stagedDiff.trim().length > 0;
   const diffSource: DiffSource = hasStaged ? "staged" : "unstaged";
-  const rawDiff = hasStaged
-    ? stagedDiff
+  const trackedUnstagedDiff = hasStaged
+    ? ""
     : await git(workspacePath, ["diff", "--no-ext-diff", "--"]);
-  const statusFiles = await listChangedFiles(workspacePath);
+  const statusFiles = hasStaged
+    ? await listStagedFiles(workspacePath)
+    : await listUncommittedFiles(workspacePath, options.includeUntrackedFiles);
   const safeFiles = statusFiles.filter(isSafeDiffFile);
   const warnings: string[] = [];
 
@@ -78,7 +82,11 @@ export async function collectDiffContext(
     !hasStaged && options.includeUntrackedFiles
       ? await collectUntrackedFileDiff(workspacePath, safeFiles)
       : "";
-  const filteredDiff = filterDiffBySafeFiles(`${rawDiff}${untrackedDiff}`, safeFiles);
+  const filteredDiff = filterDiffBySafeFiles(
+    `${hasStaged ? stagedDiff : trackedUnstagedDiff}${untrackedDiff}`,
+    safeFiles
+  );
+  const stats = calculateChangeStats(filteredDiff);
   const truncated = truncateDiff(filteredDiff, options.maxDiffCharacters);
 
   if (truncated.truncated) {
@@ -89,22 +97,34 @@ export async function collectDiffContext(
     diff: truncated.diff,
     diffSource,
     files: safeFiles,
-    stats: calculateChangeStats(truncated.diff),
+    stats,
     truncated: truncated.truncated,
     warnings
   };
 }
 
-export async function listChangedFiles(workspacePath: string): Promise<string[]> {
-  const output = await git(workspacePath, ["status", "--porcelain=v1", "-uall"]);
-  const files = output
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => line.slice(3).split(" -> ").at(-1) ?? "")
-    .filter(Boolean);
+async function listStagedFiles(workspacePath: string): Promise<string[]> {
+  return parseNullDelimited(
+    await git(workspacePath, ["diff", "--cached", "--name-only", "-z", "--"])
+  );
+}
 
-  return Array.from(new Set(files));
+async function listUncommittedFiles(
+  workspacePath: string,
+  includeUntrackedFiles: boolean
+): Promise<string[]> {
+  const trackedFiles = parseNullDelimited(
+    await git(workspacePath, ["diff", "--name-only", "-z", "--"])
+  );
+  const untrackedFiles = includeUntrackedFiles ? await listUntrackedFiles(workspacePath) : [];
+
+  return Array.from(new Set([...trackedFiles, ...untrackedFiles]));
+}
+
+async function listUntrackedFiles(workspacePath: string): Promise<string[]> {
+  return parseNullDelimited(
+    await git(workspacePath, ["ls-files", "--others", "--exclude-standard", "-z"])
+  );
 }
 
 export async function getRepositoryName(workspacePath: string): Promise<string> {
@@ -162,13 +182,10 @@ async function collectUntrackedFileDiff(
   workspacePath: string,
   safeFiles: string[]
 ): Promise<string> {
-  const status = await git(workspacePath, ["status", "--porcelain=v1", "-uall"]);
-  const untrackedFiles = status
-    .split(/\r?\n/)
-    .filter((line) => line.startsWith("?? "))
-    .map((line) => line.slice(3))
+  const safeSet = new Set(safeFiles);
+  const untrackedFiles = (await listUntrackedFiles(workspacePath))
     .filter(isSafeDiffFile)
-    .filter((file) => safeFiles.includes(file));
+    .filter((file) => safeSet.has(file));
   const chunks: string[] = [];
 
   for (const file of untrackedFiles) {
@@ -178,7 +195,7 @@ async function collectUntrackedFileDiff(
       continue;
     }
 
-    const diff = await git(workspacePath, ["diff", "--no-index", "--", "/dev/null", file]).catch(
+    const diff = await git(workspacePath, ["diff", "--no-index", "--", os.devNull, file]).catch(
       (error: unknown) => {
         if (isGitDiffExitCode(error)) {
           return error.stdout;
@@ -192,6 +209,10 @@ async function collectUntrackedFileDiff(
   return chunks.length > 0 ? `\n${chunks.join("\n")}` : "";
 }
 
+function parseNullDelimited(output: string): string[] {
+  return output.split("\0").filter(Boolean);
+}
+
 function filterDiffBySafeFiles(diff: string, safeFiles: string[]): string {
   if (diff.trim().length === 0) {
     return "";
@@ -201,8 +222,9 @@ function filterDiffBySafeFiles(diff: string, safeFiles: string[]): string {
   const chunks = diff.split(/(?=^diff --git )/m);
   return chunks
     .filter((chunk) => {
+      if (chunk.trim().length === 0) return false;
       const match = /^diff --git a\/(.+) b\/(.+)$/m.exec(chunk);
-      return match ? safeSet.has(match[2]) : true;
+      return match ? safeSet.has(match[2]) : false; // drop unattributable chunks
     })
     .join("");
 }
@@ -215,6 +237,12 @@ async function git(workspacePath: string, args: string[]): Promise<string> {
   return stdout;
 }
 
-function isGitDiffExitCode(error: unknown): error is { stdout: string } {
-  return typeof error === "object" && error !== null && "stdout" in error;
+function isGitDiffExitCode(error: unknown): error is { stdout: string; code: number } {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "stdout" in error &&
+    "code" in error &&
+    (error as { code: unknown }).code === 1
+  );
 }

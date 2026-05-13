@@ -1,23 +1,16 @@
-import path from "node:path";
+import assert from "node:assert";
 
-import Mocha from "mocha";
+import * as vscode from "vscode";
 
-export function run(): Promise<void> {
-  const mocha = new Mocha({
-    ui: "tdd",
-    color: true
-  });
-  const testsRoot = __dirname;
+export async function run(): Promise<void> {
+  const extension = vscode.extensions.getExtension("tommyqhoang.commitcraft-ai-smart-git-commits");
 
-  mocha.addFile(path.resolve(testsRoot, "extension.test.js"));
+  assert.ok(extension, "Expected CommitCraft extension to be discoverable");
+  await extension.activate();
 
-  return new Promise((resolve, reject) => {
-    mocha.run((failures) => {
-      if (failures > 0) {
-        reject(new Error(`${failures} extension tests failed.`));
-      } else {
-        resolve();
-      }
-    });
-  });
+  const commands = await vscode.commands.getCommands(true);
+
+  assert.ok(commands.includes("commitCraft.generateCommitMessage"));
+  assert.ok(commands.includes("commitCraft.setOpenRouterToken"));
+  assert.ok(commands.includes("commitCraft.clearOpenRouterToken"));
 }

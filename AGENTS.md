@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-This repository is `ai-commit-vscode-extension`, a TypeScript VS Code extension for generating commit messages, showing simple Git change stats, and committing or pushing with confirmation. Keep source under `src/`:
+This repository is `CommitCraft-AI-Smart-Git-Commits`, a TypeScript VS Code extension for generating commit messages, showing simple Git change stats, and committing or pushing with confirmation. Keep source under `src/`:
 
 - `src/extension.ts` for activation and command registration.
 - `src/commands/` for VS Code command handlers.
@@ -12,11 +12,11 @@ This repository is `ai-commit-vscode-extension`, a TypeScript VS Code extension 
 - `src/config/` for settings and secure token access.
 - `src/test/` for unit and extension tests.
 
-Keep icons and marketplace media in `assets/` when added.
+Keep icons and marketplace media in `assets/`.
 
 ## Build, Test, and Development Commands
 
-Use these npm scripts once the extension scaffold exists:
+Use these npm scripts:
 
 - `npm install` installs dependencies.
 - `npm run compile` type-checks and builds.
@@ -24,8 +24,6 @@ Use these npm scripts once the extension scaffold exists:
 - `npm test` runs the automated test suite.
 - `npm run lint` checks code quality.
 - `npm run format` formats source and docs.
-
-Until `package.json` exists, treat these as required scaffold scripts.
 
 ## Coding Style & Naming Conventions
 

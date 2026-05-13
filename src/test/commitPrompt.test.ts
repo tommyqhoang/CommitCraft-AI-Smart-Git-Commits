@@ -5,7 +5,7 @@ import { buildCommitPrompt } from "../openrouter/commitPrompt";
 describe("buildCommitPrompt", () => {
   it("builds a deterministic prompt with stats, files, branch, and JSON instructions", () => {
     const prompt = buildCommitPrompt({
-      repositoryName: "ai-commit-vscode-extension",
+      repositoryName: "CommitCraft-AI-Smart-Git-Commits",
       branchName: "main",
       diff: "diff --git a/src/extension.ts b/src/extension.ts\n+activate();",
       diffSource: "staged",
@@ -19,7 +19,7 @@ describe("buildCommitPrompt", () => {
       truncated: false
     });
 
-    expect(prompt).toContain("Repository: ai-commit-vscode-extension");
+    expect(prompt).toContain("Repository: CommitCraft-AI-Smart-Git-Commits");
     expect(prompt).toContain("Branch: main");
     expect(prompt).toContain("Diff source: staged");
     expect(prompt).toContain("Files changed: 1");

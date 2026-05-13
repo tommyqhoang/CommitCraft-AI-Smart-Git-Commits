@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-label="CommitCraft icon">
+  <rect width="128" height="128" rx="24" fill="#111827"/>
+  <path d="M35 35h58a8 8 0 0 1 8 8v42a8 8 0 0 1-8 8H35a8 8 0 0 1-8-8V43a8 8 0 0 1 8-8Z" fill="#1f2937" stroke="#38bdf8" stroke-width="4"/>
+  <path d="M43 54h42M43 70h28" stroke="#e5e7eb" stroke-width="7" stroke-linecap="round"/>
+  <path d="M86 71l6 6 13-15" fill="none" stroke="#22c55e" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M31 103h66" stroke="#38bdf8" stroke-width="6" stroke-linecap="round" opacity=".8"/>
+</svg>
