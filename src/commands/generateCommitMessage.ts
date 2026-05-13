@@ -527,6 +527,7 @@ function createEmptyDiffContext(): DiffContext {
     diffSource: "unstaged",
     files: [],
     excludedFiles: [],
+    fileStats: {},
     stats: {
       filesChanged: 0,
       linesAdded: 0,

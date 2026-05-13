@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 
-import { collectDiffContext, filterDiffContextToFiles } from "../git/diffCollector";
+import { collectDiffContext, filterDiffContextToFiles, parseNumstat } from "../git/diffCollector";
 import { isSafeDiffFile, truncateDiff } from "../git/diffCollector";
 
 const execFileAsync = promisify(execFile);
@@ -18,6 +18,23 @@ describe("diff safety helpers", () => {
     expect(isSafeDiffFile("secrets/openrouter-token.txt")).toBe(false);
     expect(isSafeDiffFile("assets/icon.png")).toBe(false);
     expect(isSafeDiffFile("package-lock.json")).toBe(false);
+  });
+
+  it("parses git numstat output into per-file added/removed counts", () => {
+    const output = "3\t1\tsrc/foo.ts\n0\t5\tsrc/bar.ts\n2\t0\tsrc/new.ts\n";
+    const stats = parseNumstat(output);
+
+    expect(stats["src/foo.ts"]).toEqual({ added: 3, removed: 1 });
+    expect(stats["src/bar.ts"]).toEqual({ added: 0, removed: 5 });
+    expect(stats["src/new.ts"]).toEqual({ added: 2, removed: 0 });
+  });
+
+  it("treats binary file entries in numstat as zero added/removed", () => {
+    const output = "-\t-\tassets/icon.png\n1\t0\tsrc/foo.ts\n";
+    const stats = parseNumstat(output);
+
+    expect(stats["assets/icon.png"]).toEqual({ added: 0, removed: 0 });
+    expect(stats["src/foo.ts"]).toEqual({ added: 1, removed: 0 });
   });
 
   it("truncates diffs with an explicit marker", () => {

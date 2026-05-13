@@ -9,6 +9,10 @@ const baseDiffContext: DiffContext = {
   diffSource: "unstaged" as const,
   files: ["src/a.ts", "src/b.ts"],
   excludedFiles: [{ path: ".env", reason: "secret-like file" }],
+  fileStats: {
+    "src/a.ts": { added: 10, removed: 3 },
+    "src/b.ts": { added: 0, removed: 2 }
+  },
   stats: {
     filesChanged: 2,
     linesAdded: 1,
@@ -55,7 +59,7 @@ describe("renderCommitAssistantHtml", () => {
 
     expect(html).toContain('class="file-list"');
     expect(html).toContain('class="file-checkbox"');
-    expect(html).toContain('class="file-name"');
+    expect(html).toContain('class="file-open-btn"');
   });
 
   it("renders line stats as a compact stat strip with signed values", () => {
@@ -343,6 +347,60 @@ describe("renderCommitAssistantHtml", () => {
     expect(html).toContain('id="commitAndPush"');
     expect(html).toContain("Commit + Push");
     expect(html).not.toContain('id="commitAndPush" disabled');
+  });
+
+  it("renders per-file added/removed line counts next to each file name", () => {
+    const html = renderCommitAssistantHtml(
+      {
+        modelUsed: undefined,
+        diffContext: baseDiffContext,
+        recovered: false,
+        canPush: true,
+        message: undefined
+      },
+      { cspSource: "vscode-resource:", nonce: "test-nonce" }
+    );
+
+    expect(html).toContain("+10");
+    expect(html).toContain("-3");
+    expect(html).toContain("+0");
+    expect(html).toContain("-2");
+  });
+
+  it("renders file names as clickable elements that dispatch openFile in the preview view", () => {
+    const html = renderCommitAssistantHtml(
+      {
+        modelUsed: undefined,
+        diffContext: baseDiffContext,
+        recovered: false,
+        canPush: true,
+        message: undefined
+      },
+      { cspSource: "vscode-resource:", nonce: "test-nonce" }
+    );
+
+    expect(html).toContain("openFile");
+    expect(html).toContain("src/a.ts");
+  });
+
+  it("renders file names as clickable in the generated (affected files) view", () => {
+    const html = renderCommitAssistantHtml(
+      {
+        modelUsed: "openrouter/auto",
+        diffContext: baseDiffContext,
+        recovered: false,
+        canPush: true,
+        message: {
+          summary: "feat: improve file list",
+          description: "",
+          riskLevel: "low"
+        }
+      },
+      { cspSource: "vscode-resource:", nonce: "test-nonce" }
+    );
+
+    expect(html).toContain("openFile");
+    expect(html).toContain("src/a.ts");
   });
 
   it("renders a warning when the AI response was recovered from non-JSON", () => {

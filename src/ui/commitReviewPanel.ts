@@ -69,6 +69,14 @@ async function handleMessage(
       updatePanelIfChanged(panel, await handlers.undoCommit());
     } else if (message.command === "reviewChanges") {
       updatePanelIfChanged(panel, await handlers.reviewChanges());
+    } else if (message.command === "openFile" && message.path) {
+      const uri = vscode.Uri.joinPath(
+        vscode.workspace.workspaceFolders?.[0]?.uri ?? vscode.Uri.file(""),
+        message.path
+      );
+      void vscode.workspace.openTextDocument(uri).then((doc) =>
+        vscode.window.showTextDocument(doc, { preview: false, preserveFocus: true })
+      );
     }
   } catch (err) {
     const errorText = err instanceof Error ? err.message : String(err);
@@ -105,6 +113,7 @@ function isWebviewMessage(value: unknown): value is {
   command: string;
   message?: string;
   files?: string[];
+  path?: string;
 } {
   return (
     typeof value === "object" &&
@@ -113,7 +122,8 @@ function isWebviewMessage(value: unknown): value is {
     typeof value.command === "string" &&
     (!("message" in value) || typeof value.message === "string") &&
     (!("files" in value) ||
-      (Array.isArray(value.files) && value.files.every((file) => typeof file === "string")))
+      (Array.isArray(value.files) && value.files.every((file) => typeof file === "string"))) &&
+    (!("path" in value) || typeof value.path === "string")
   );
 }
 

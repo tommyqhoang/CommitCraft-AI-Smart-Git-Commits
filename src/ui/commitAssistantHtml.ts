@@ -213,18 +213,47 @@ const CSS = `
     font-family: var(--vscode-editor-font-family);
     font-size: 12px;
   }
-
-  /* File list — read-only (generated view) */
-  .file-row-plain {
-    padding: 6px 14px;
-    border-bottom: 1px solid var(--cc-border);
+  .file-open-btn {
+    flex: 1;
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
     font-family: var(--vscode-editor-font-family);
     font-size: 12px;
-    color: var(--cc-muted);
+    color: inherit;
+    cursor: pointer;
+    text-align: left;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    border-radius: 2px;
+    transition: color 0.1s;
   }
+  .file-open-btn:hover { color: var(--vscode-textLink-activeForeground, var(--cc-accent)); text-decoration: underline; }
+  .file-stat {
+    flex-shrink: 0;
+    font-family: var(--vscode-editor-font-family);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+  .file-stat.added { color: var(--cc-added); }
+  .file-stat.removed { color: var(--cc-removed); }
+
+  /* File list — read-only (generated view) */
+  .file-row-plain {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    border-bottom: 1px solid var(--cc-border);
+    color: var(--cc-muted);
+  }
+  .file-row-plain .file-open-btn { color: var(--cc-muted); }
+  .file-row-plain .file-open-btn:hover { color: var(--vscode-textLink-activeForeground, var(--cc-accent)); }
   .file-row-plain:last-child { border-bottom: 0; }
 
   /* Excluded files */
@@ -518,6 +547,13 @@ export function renderCommitAssistantHtml(
       errorEl.style.display = "none";
       vscode.postMessage({ command: "reviewChanges" });
     });
+    document.querySelectorAll(".file-open-btn").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        const filePath = btn.getAttribute("data-path");
+        if (filePath) vscode.postMessage({ command: "openFile", path: filePath });
+      });
+    });
   </script>
 </body>
 </html>`;
@@ -528,10 +564,13 @@ function renderPreviewView(data: CommitAssistantData): string {
   const sourceLabel = data.diffContext.diffSource === "staged" ? "staged" : "unstaged";
 
   const files = data.diffContext.files
-    .map(
-      (file) =>
-        `<label class="file-row"><input class="file-checkbox" type="checkbox" name="file" value="${escapeHtml(file)}" checked><span class="file-name" title="${escapeHtml(file)}">${escapeHtml(file)}</span></label>`
-    )
+    .map((file) => {
+      const stat = data.diffContext.fileStats[file];
+      const statsHtml = stat
+        ? `<span class="file-stat added">+${stat.added}</span><span class="file-stat removed">-${stat.removed}</span>`
+        : "";
+      return `<label class="file-row"><input class="file-checkbox" type="checkbox" name="file" value="${escapeHtml(file)}" checked><button class="file-open-btn" data-path="${escapeHtml(file)}" title="Open ${escapeHtml(file)}" type="button">${escapeHtml(file)}</button>${statsHtml}</label>`;
+    })
     .join("");
 
   const excluded = data.diffContext.excludedFiles
@@ -591,9 +630,13 @@ function renderGeneratedView(data: CommitAssistantData, pushTitle: string): stri
   }
 
   const files = data.diffContext.files
-    .map(
-      (file) => `<div class="file-row-plain" title="${escapeHtml(file)}">${escapeHtml(file)}</div>`
-    )
+    .map((file) => {
+      const stat = data.diffContext.fileStats[file];
+      const statsHtml = stat
+        ? `<span class="file-stat added">+${stat.added}</span><span class="file-stat removed">-${stat.removed}</span>`
+        : "";
+      return `<div class="file-row-plain"><button class="file-open-btn" data-path="${escapeHtml(file)}" title="Open ${escapeHtml(file)}" type="button">${escapeHtml(file)}</button>${statsHtml}</div>`;
+    })
     .join("");
 
   const commitType = extractCommitType(message.summary);

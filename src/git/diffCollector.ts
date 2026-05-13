@@ -34,16 +34,36 @@ export interface TruncatedDiff {
   truncated: boolean;
 }
 
+export interface FileLineStat {
+  added: number;
+  removed: number;
+}
+
 export interface DiffContext {
   diff: string;
   fullDiff: string;
   diffSource: DiffSource;
   files: string[];
   excludedFiles: ExcludedDiffFile[];
+  fileStats: Record<string, FileLineStat>;
   stats: ChangeStats;
   truncated: boolean;
   warnings: string[];
   maxDiffCharacters: number;
+}
+
+export function parseNumstat(output: string): Record<string, FileLineStat> {
+  const result: Record<string, FileLineStat> = {};
+  for (const line of output.split("\n")) {
+    const match = /^(\d+|-)\t(\d+|-)\t(.+)$/.exec(line.trim());
+    if (match) {
+      result[match[3]] = {
+        added: match[1] === "-" ? 0 : parseInt(match[1], 10),
+        removed: match[2] === "-" ? 0 : parseInt(match[2], 10)
+      };
+    }
+  }
+  return result;
 }
 
 export type ExcludedFileReason =
@@ -133,12 +153,25 @@ export async function collectDiffContext(
     warnings.push(`Diff was truncated to ${options.maxDiffCharacters} characters.`);
   }
 
+  const numstatArgs = hasStaged
+    ? ["diff", "--cached", "--numstat", "--"]
+    : ["diff", "--numstat", "--"];
+  const allFileStats = parseNumstat(await git(workspacePath, numstatArgs).catch(() => ""));
+  const safeSet = new Set(safeFiles);
+  const fileStats: Record<string, FileLineStat> = {};
+  for (const [file, stat] of Object.entries(allFileStats)) {
+    if (safeSet.has(file)) {
+      fileStats[file] = stat;
+    }
+  }
+
   return {
     diff: truncated.diff,
     fullDiff: filteredDiff,
     diffSource,
     files: safeFiles,
     excludedFiles,
+    fileStats,
     stats,
     truncated: truncated.truncated,
     warnings,
@@ -160,11 +193,19 @@ export function filterDiffContextToFiles(
     warnings.push(`Diff was truncated to ${context.maxDiffCharacters} characters.`);
   }
 
+  const filteredFileStats: Record<string, FileLineStat> = {};
+  for (const file of files) {
+    if (context.fileStats[file]) {
+      filteredFileStats[file] = context.fileStats[file];
+    }
+  }
+
   return {
     ...context,
     diff: truncated.diff,
     fullDiff,
     files,
+    fileStats: filteredFileStats,
     stats: calculateChangeStats(fullDiff),
     truncated: truncated.truncated,
     warnings
