@@ -1,0 +1,113 @@
+{
+  "name": "ai-commit-vscode-extension",
+  "displayName": "AI Commit",
+  "description": "Generate editable AI commit messages from Git changes with OpenRouter.",
+  "version": "0.1.0",
+  "publisher": "local-dev",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tommyqhoang/ai-commit-vscode-extension.git"
+  },
+  "bugs": {
+    "url": "https://github.com/tommyqhoang/ai-commit-vscode-extension/issues"
+  },
+  "homepage": "https://github.com/tommyqhoang/ai-commit-vscode-extension#readme",
+  "engines": {
+    "vscode": "^1.96.0"
+  },
+  "categories": [
+    "Source Control",
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:aiCommit.generateCommitMessage",
+    "onCommand:aiCommit.setOpenRouterToken",
+    "onCommand:aiCommit.clearOpenRouterToken"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "aiCommit.generateCommitMessage",
+        "title": "AI Commit: Generate Commit Message",
+        "category": "AI Commit",
+        "icon": "$(sparkle)"
+      },
+      {
+        "command": "aiCommit.setOpenRouterToken",
+        "title": "AI Commit: Set OpenRouter API Token",
+        "category": "AI Commit"
+      },
+      {
+        "command": "aiCommit.clearOpenRouterToken",
+        "title": "AI Commit: Clear OpenRouter API Token",
+        "category": "AI Commit"
+      }
+    ],
+    "configuration": {
+      "title": "AI Commit",
+      "properties": {
+        "aiCommit.openRouterModel": {
+          "type": "string",
+          "default": "openrouter/auto",
+          "description": "OpenRouter model used to generate commit messages."
+        },
+        "aiCommit.fallbackModel": {
+          "type": "string",
+          "default": "openrouter/free",
+          "description": "Fallback OpenRouter model used when the primary model fails."
+        },
+        "aiCommit.maxDiffCharacters": {
+          "type": "number",
+          "default": 60000,
+          "minimum": 1000,
+          "description": "Maximum diff characters sent to OpenRouter before truncation."
+        },
+        "aiCommit.includeUntrackedFiles": {
+          "type": "boolean",
+          "default": true,
+          "description": "Include safe untracked text files in AI commit context."
+        },
+        "aiCommit.autoPushAfterCommit": {
+          "type": "boolean",
+          "default": false,
+          "description": "Offer Commit and Push as a one-step action after review."
+        }
+      }
+    },
+    "menus": {
+      "scm/title": [
+        {
+          "command": "aiCommit.generateCommitMessage",
+          "group": "navigation"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p .",
+    "watch": "tsc -w -p .",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "vscode:test": "npm run compile && node ./dist/test/runTest.js",
+    "package": "vsce package --no-dependencies"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^22.10.2",
+    "@types/vscode": "^1.96.0",
+    "@typescript-eslint/eslint-plugin": "^8.18.1",
+    "@typescript-eslint/parser": "^8.18.1",
+    "@vscode/test-electron": "^2.4.1",
+    "@vscode/vsce": "^3.2.1",
+    "eslint": "^9.17.0",
+    "mocha": "^11.7.5",
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

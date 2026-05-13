@@ -1,0 +1,13 @@
+.git/**
+.vscode/**
+node_modules/**
+.vscode-test/**
+src/**
+dist/test/**
+coverage/**
+*.log
+*.vsix
+vitest.config.ts
+tsconfig.json
+eslint.config.js
+.prettierrc.json

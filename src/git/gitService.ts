@@ -1,0 +1,90 @@
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+
+const execFileAsync = promisify(execFile);
+
+export interface GitCommitOptions {
+  workspacePath: string;
+  message: string;
+  filesToStage: string[];
+  stageFilesBeforeCommit: boolean;
+}
+
+export interface PushReadiness {
+  canPush: boolean;
+  reason?: string;
+  branchName: string;
+  remoteName?: string;
+}
+
+export class GitService {
+  async hasChanges(workspacePath: string): Promise<boolean> {
+    const output = await this.git(workspacePath, ["status", "--porcelain=v1", "-uall"]);
+    return output.trim().length > 0;
+  }
+
+  async hasStagedChanges(workspacePath: string): Promise<boolean> {
+    const output = await this.git(workspacePath, ["diff", "--cached", "--name-only"]);
+    return output.trim().length > 0;
+  }
+
+  async commit(options: GitCommitOptions): Promise<void> {
+    if (options.stageFilesBeforeCommit && options.filesToStage.length > 0) {
+      await this.git(options.workspacePath, ["add", "--", ...options.filesToStage]);
+    }
+
+    await this.git(options.workspacePath, ["commit", "-m", options.message]);
+  }
+
+  async getPushReadiness(workspacePath: string): Promise<PushReadiness> {
+    const branchName = (await this.git(workspacePath, ["branch", "--show-current"])).trim();
+    if (branchName.length === 0) {
+      return {
+        canPush: false,
+        reason: "Cannot push from a detached HEAD state.",
+        branchName: "detached HEAD"
+      };
+    }
+
+    const remoteName = await this.git(workspacePath, ["config", `branch.${branchName}.remote`])
+      .then((value) => value.trim())
+      .catch(() => "");
+    const remotes = await this.git(workspacePath, ["remote"]);
+
+    if (remoteName.length === 0 && remotes.trim().length === 0) {
+      return {
+        canPush: false,
+        reason: "No Git remote is configured for this repository.",
+        branchName
+      };
+    }
+
+    return {
+      canPush: true,
+      branchName,
+      remoteName: remoteName || remotes.trim().split(/\r?\n/)[0]
+    };
+  }
+
+  async push(workspacePath: string): Promise<void> {
+    const readiness = await this.getPushReadiness(workspacePath);
+    if (!readiness.canPush) {
+      throw new Error(readiness.reason ?? "Repository is not ready to push.");
+    }
+
+    await this.git(workspacePath, [
+      "push",
+      "-u",
+      readiness.remoteName ?? "origin",
+      readiness.branchName
+    ]);
+  }
+
+  private async git(workspacePath: string, args: string[]): Promise<string> {
+    const { stdout } = await execFileAsync("git", args, {
+      cwd: workspacePath,
+      maxBuffer: 20 * 1024 * 1024
+    });
+    return stdout;
+  }
+}
