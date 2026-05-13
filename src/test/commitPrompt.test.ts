@@ -26,5 +26,6 @@ describe("buildCommitPrompt", () => {
     expect(prompt).toContain("src/extension.ts");
     expect(prompt).toContain('"summary"');
     expect(prompt).toContain("Return only valid JSON");
+    expect(prompt).toContain("style, perf, revert");
   });
 });

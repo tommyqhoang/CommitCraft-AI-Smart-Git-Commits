@@ -10,6 +10,10 @@ export interface GenerateCommitResponse {
   modelUsed: string;
 }
 
+export interface OpenRouterClientOptions {
+  timeoutMs: number;
+}
+
 type Fetch = (input: string, init: RequestInit) => Promise<ResponseLike>;
 
 interface ResponseLike {
@@ -30,9 +34,12 @@ interface OpenRouterChatResponse {
 
 export class OpenRouterClient {
   private readonly fetchImpl: Fetch;
+  private readonly timeoutMs: number;
 
-  constructor(fetchImpl: Fetch = fetch) {
+  constructor(fetchImpl: Fetch = fetch, options: OpenRouterClientOptions = { timeoutMs: 30_000 }) {
     this.fetchImpl = fetchImpl;
+    this.timeoutMs =
+      Number.isFinite(options.timeoutMs) && options.timeoutMs > 0 ? options.timeoutMs : 30_000;
   }
 
   async generateCommitMessage(request: GenerateCommitRequest): Promise<GenerateCommitResponse> {
@@ -63,26 +70,40 @@ export class OpenRouterClient {
     request: GenerateCommitRequest,
     model: string
   ): Promise<GenerateCommitResponse> {
-    const response = await this.fetchImpl("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${request.token}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://github.com/tommyqhoang/CommitCraft-AI-Smart-Git-Commits",
-        "X-Title": "CommitCraft AI Smart Git Commits"
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          {
-            role: "user",
-            content: request.prompt
-          }
-        ],
-        temperature: 0.2,
-        response_format: { type: "json_object" }
-      })
-    });
+    const abortController = new AbortController();
+    const timeout = setTimeout(() => abortController.abort(), this.timeoutMs);
+    let response: ResponseLike;
+
+    try {
+      response = await this.fetchImpl("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        signal: abortController.signal,
+        headers: {
+          Authorization: `Bearer ${request.token}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer": "https://github.com/tommyqhoang/CommitCraft-AI-Smart-Git-Commits",
+          "X-Title": "CommitCraft AI Smart Git Commits"
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            {
+              role: "user",
+              content: request.prompt
+            }
+          ],
+          temperature: 0.2,
+          response_format: { type: "json_object" }
+        })
+      });
+    } catch (error) {
+      if (abortController.signal.aborted) {
+        throw new Error(`OpenRouter request timed out after ${this.timeoutMs}ms.`);
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeout);
+    }
 
     if (!response.ok) {
       const message = formatHttpError(

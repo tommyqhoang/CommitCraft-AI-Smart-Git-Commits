@@ -5,10 +5,10 @@
 This repository is `CommitCraft-AI-Smart-Git-Commits`, a TypeScript VS Code extension for generating commit messages, showing simple Git change stats, and committing or pushing with confirmation. Keep source under `src/`:
 
 - `src/extension.ts` for activation and command registration.
-- `src/commands/` for VS Code command handlers.
-- `src/git/` for diff collection, change stats, commit, push, and remote logic. `changeStats.ts` owns total files changed, lines added, and lines removed.
+- `src/commands/` for VS Code command handlers and workspace resolution.
+- `src/git/` for diff collection, file safety filtering, change stats, commit, push, and remote logic. `changeStats.ts` owns total files changed, lines added, and lines removed.
 - `src/openrouter/` for API calls, prompt creation, and response parsing.
-- `src/ui/` for review panels, notifications, and user confirmations.
+- `src/ui/` for assistant webview rendering, review panels, notifications, and user confirmations.
 - `src/config/` for settings and secure token access.
 - `src/test/` for unit and extension tests.
 
@@ -45,7 +45,7 @@ The current history only contains an initial commit, so use the convention in `R
 <type>: <short summary>
 ```
 
-Allowed types include `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `build`, and `ci`.
+Allowed types include `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `build`, `ci`, `style`, `perf`, and `revert`.
 
 Pull requests should include a concise description, testing performed, screenshots or recordings for UI changes, and any linked issue. Call out changes affecting tokens, Git operations, or OpenRouter request content.
 
@@ -53,32 +53,21 @@ Pull requests should include a concise description, testing performed, screensho
 
 Store OpenRouter API tokens only in VS Code `SecretStorage`. Never log tokens or send ignored files, binary content, `.env` files, or obvious secrets to OpenRouter. Commit and push actions must always require explicit user confirmation.
 
-
 <claude-mem-context>
 # Memory Context
 
-# [ai-commit] recent context, 2026-05-13 7:13am CDT
+# [ai-commit] recent context, 2026-05-13 7:38am CDT
 
 Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision 🚨security_alert 🔐security_note
 Format: ID TIME TYPE TITLE
 Fetch details: get_observations([IDs]) | Search: mem-search skill
 
-Stats: 45 obs (8,402t read) | 815,143t work | 99% savings
+Stats: 50 obs (9,040t read) | 758,321t work | 99% savings
 
 ### May 12, 2026
-1758 11:21p 🔴 Publisher ID Mismatch Resolution
+
 S85 Publisher ID mismatch resolution for VS Code Marketplace extension publication (May 12 at 11:22 PM)
-1759 11:22p ✅ Extension Compilation Initiated
-1760 11:23p 🔵 Extension Category Configuration
-1761 " ✅ Updated VS Code Marketplace Category
-1762 11:24p 🔵 Generate Commit Message Command Implementation
-1763 " 🔵 Commit Review Panel UI Implementation
-1764 11:25p ✅ Created Review Summary Document
-1765 11:26p ✅ Created Review Summary Document
-1780 11:27p ✅ commitReviewedMessage Return Type Updated
-1781 " ✅ Added `os` Import for Cross-Platform Fix
-1782 11:28p ✅ Fixed Recursive Retry Pattern
-1783 " 🔵 Read package.json Settings
+1783 11:28p 🔵 Read package.json Settings
 1784 " ✅ Added Comment to showCommitAndPush Setting
 1785 " 🔵 Verified commitReviewedMessage Return Type
 1786 11:29p 🔴 Configuration Validation Result
@@ -91,7 +80,9 @@ S85 Publisher ID mismatch resolution for VS Code Marketplace extension publicati
 1796 " 🔵 .vscodeignore does not exclude assets directory
 1797 11:39p 🔴 Conditional display of Commit & Push button added
 S86 Fix missing icon and conditional button rendering in VS Code extension (May 12 at 11:39 PM)
+
 ### May 13, 2026
+
 1798 6:51a 🔵 Project structure discovered for ai-commit VS Code extension
 1799 " 🔵 VS Code extension activation and command registration
 1800 " 🔵 Manual QA checklist for CommitCraft extension
@@ -114,6 +105,22 @@ S86 Fix missing icon and conditional button rendering in VS Code extension (May 
 1820 " 🔵 settings.test.ts updated
 1822 " 🔵 settings.ts updated
 1832 7:13a 🔵 User unable to access installed extension for commit generation
+1833 7:18a 🔵 [ **title**: Systematic debugging methodology documentation read ]
+1834 7:19a ✅ [ **title**: Local tests executed ]
+1835 " ✅ [ **title**: generateCommitMessage.ts code reviewed ]
+1836 " 🔵 OpenRouter client code reviewed
+1837 7:20a 🔴 Process still running
+1838 7:21a ✅ Added oversized file handling to diffCollector
+1839 7:22a ✅ Extracted maxDiffCharacters logic into readDiffLimit helper
+1841 " ✅ Added configurable timeout to OpenRouterClient
+1844 7:23a ✅ Fixed test timing issue in openRouterClient.test.ts
+1861 7:31a 🟣 UI Enhancements for Commitcraft
+1862 " 🔄 UI Line Styling Improvements
+1863 " 🟣 Enhanced Commit Assistant UI
+1864 " 🔴 Missing UI Class Implementations
+1865 7:32a 🔄 Commit Assistant UI Overhaul
+1866 7:33a 🔄 Code Formatting Applied
+1867 " 🔴 VS Code Extension Tests Executed
 
-Access 815k tokens of past work via get_observations([IDs]) or mem-search skill.
+Access 758k tokens of past work via get_observations([IDs]) or mem-search skill.
 </claude-mem-context>

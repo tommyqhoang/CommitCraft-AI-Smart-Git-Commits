@@ -32,4 +32,12 @@ describe("readSettingsFromConfig", () => {
     expect(settings.fallbackModel).toBe("openrouter/free");
     expect(settings.maxDiffCharacters).toBe(1000);
   });
+
+  it("falls back to the default diff limit when the configured value is not finite", () => {
+    const settings = readSettingsFromConfig({
+      get: (key) => (key === "maxDiffCharacters" ? Number.NaN : undefined) as never
+    });
+
+    expect(settings.maxDiffCharacters).toBe(60000);
+  });
 });

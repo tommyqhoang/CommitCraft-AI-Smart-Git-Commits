@@ -15,7 +15,7 @@ export function readSettingsFromConfig(config: ConfigReader): AiCommitSettings {
   return {
     openRouterModel: readNonEmptyString(config, "openRouterModel", "openrouter/auto"),
     fallbackModel: readNonEmptyString(config, "fallbackModel", "openrouter/free"),
-    maxDiffCharacters: Math.max(1000, config.get<number>("maxDiffCharacters") ?? 60000),
+    maxDiffCharacters: readDiffLimit(config),
     includeUntrackedFiles: config.get<boolean>("includeUntrackedFiles") ?? true
   };
 }
@@ -23,4 +23,9 @@ export function readSettingsFromConfig(config: ConfigReader): AiCommitSettings {
 function readNonEmptyString(config: ConfigReader, key: string, fallback: string): string {
   const value = config.get<string>(key);
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : fallback;
+}
+
+function readDiffLimit(config: ConfigReader): number {
+  const value = config.get<number>("maxDiffCharacters");
+  return typeof value === "number" && Number.isFinite(value) ? Math.max(1000, value) : 60000;
 }

@@ -45,22 +45,51 @@ export function renderCommitAssistantHtml(
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CommitCraft Review</title>
   <style>
+    :root {
+      --commitcraft-added: #3fb950;
+      --commitcraft-removed: #f85149;
+      --commitcraft-panel: var(--vscode-sideBar-background);
+      --commitcraft-border: var(--vscode-panel-border);
+    }
     body { color: var(--vscode-foreground); background: var(--vscode-editor-background); font-family: var(--vscode-font-family); margin: 0; padding: 20px; }
-    main { max-width: 920px; margin: 0 auto; display: grid; gap: 16px; }
-    textarea { width: 100%; min-height: 180px; box-sizing: border-box; color: var(--vscode-input-foreground); background: var(--vscode-input-background); border: 1px solid var(--vscode-input-border); padding: 10px; font-family: var(--vscode-editor-font-family); font-size: var(--vscode-editor-font-size); }
-    button { color: var(--vscode-button-foreground); background: var(--vscode-button-background); border: 0; padding: 8px 12px; cursor: pointer; }
+    main { max-width: 980px; margin: 0 auto; display: grid; gap: 16px; }
+    h1 { font-size: 22px; line-height: 1.2; margin: 0; }
+    input, textarea { width: 100%; box-sizing: border-box; color: var(--vscode-input-foreground); background: var(--vscode-input-background); border: 1px solid var(--vscode-input-border); padding: 12px; font-family: var(--vscode-editor-font-family); font-size: var(--vscode-editor-font-size); line-height: 1.45; border-radius: 4px; }
+    input { min-height: 40px; }
+    textarea { min-height: 190px; resize: vertical; }
+    .message-fields { display: grid; gap: 12px; }
+    .field-label { display: block; margin-bottom: 6px; color: var(--vscode-descriptionForeground); }
+    .description-box { max-height: 260px; overflow: auto; }
+    button { color: var(--vscode-button-foreground); background: var(--vscode-button-background); border: 0; border-radius: 4px; padding: 8px 12px; cursor: pointer; }
     button:hover { background: var(--vscode-button-hoverBackground); }
     button.secondary { color: var(--vscode-button-secondaryForeground); background: var(--vscode-button-secondaryBackground); }
     button:disabled { opacity: 0.45; cursor: not-allowed; }
-    dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0; }
-    dt { color: var(--vscode-descriptionForeground); }
-    dd { margin: 0; }
     ul { margin-top: 8px; padding-left: 20px; }
-    label.file { display: flex; gap: 8px; align-items: center; padding: 4px 0; }
+    label.file { display: flex; gap: 8px; align-items: center; padding: 5px 0; }
+    .assistant-shell { display: grid; gap: 16px; }
+    .hero { display: grid; gap: 4px; border-bottom: 1px solid var(--commitcraft-border); padding-bottom: 12px; }
+    .subtitle { color: var(--vscode-descriptionForeground); margin: 0; }
+    .panel { background: var(--commitcraft-panel); border: 1px solid var(--commitcraft-border); border-radius: 6px; padding: 14px; }
+    .section-title { display: block; margin-bottom: 8px; font-size: 12px; letter-spacing: 0; text-transform: uppercase; color: var(--vscode-descriptionForeground); }
+    .stat-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+    .stat-card { border: 1px solid var(--commitcraft-border); border-radius: 6px; padding: 12px; background: var(--vscode-editor-background); min-width: 0; }
+    .stat-label { color: var(--vscode-descriptionForeground); font-size: 12px; margin-bottom: 6px; }
+    .stat-value { font-size: 24px; font-weight: 700; line-height: 1; }
+    .stat-added .stat-value { color: var(--commitcraft-added); }
+    .stat-removed .stat-value { color: var(--commitcraft-removed); }
+    .meta-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+    .meta-item { min-width: 0; }
+    .meta-label { color: var(--vscode-descriptionForeground); font-size: 12px; margin-bottom: 3px; }
+    .meta-value { overflow-wrap: anywhere; }
     .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    .action-bar { align-items: center; border-top: 1px solid var(--commitcraft-border); padding-top: 12px; }
+    .primary-action { font-weight: 600; }
     .warnings { border-left: 3px solid var(--vscode-editorWarning-foreground); padding-left: 10px; color: var(--vscode-editorWarning-foreground); }
-    .files { max-height: 180px; overflow: auto; border: 1px solid var(--vscode-panel-border); padding: 8px; }
+    .files { max-height: 210px; overflow: auto; }
     .muted { color: var(--vscode-descriptionForeground); margin: 0; }
+    @media (max-width: 640px) {
+      .stat-grid, .meta-grid { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
@@ -71,7 +100,8 @@ export function renderCommitAssistantHtml(
   </main>
   <script nonce="${options.nonce}">
     const vscode = acquireVsCodeApi();
-    const message = document.getElementById("message");
+    const summary = document.getElementById("summary");
+    const description = document.getElementById("description");
     const errorEl = document.getElementById("error");
     function showError(text) {
       errorEl.textContent = text;
@@ -79,6 +109,11 @@ export function renderCommitAssistantHtml(
     }
     function selectedFiles() {
       return Array.from(document.querySelectorAll("input[name='file']:checked")).map((input) => input.value);
+    }
+    function commitMessageValue() {
+      const summaryText = summary?.value?.trim() ?? "";
+      const descriptionText = description?.value?.trim() ?? "";
+      return descriptionText ? summaryText + "\\n\\n" + descriptionText : summaryText;
     }
     window.addEventListener("message", (event) => {
       const msg = event.data;
@@ -92,15 +127,15 @@ export function renderCommitAssistantHtml(
     });
     document.getElementById("commit")?.addEventListener("click", () => {
       errorEl.style.display = "none";
-      vscode.postMessage({ command: "commit", message: message.value });
+      vscode.postMessage({ command: "commit", message: commitMessageValue() });
     });
     document.getElementById("push")?.addEventListener("click", () => {
       errorEl.style.display = "none";
-      vscode.postMessage({ command: "push", message: message?.value ?? "" });
+      vscode.postMessage({ command: "push", message: commitMessageValue() });
     });
     document.getElementById("commitAndPush")?.addEventListener("click", () => {
       errorEl.style.display = "none";
-      vscode.postMessage({ command: "commitAndPush", message: message.value });
+      vscode.postMessage({ command: "commitAndPush", message: commitMessageValue() });
     });
   </script>
 </body>
@@ -108,6 +143,7 @@ export function renderCommitAssistantHtml(
 }
 
 function renderPreviewView(data: CommitAssistantData): string {
+  const hasSummarizableFiles = data.diffContext.files.length > 0;
   const files = data.diffContext.files
     .map(
       (file) =>
@@ -119,19 +155,23 @@ function renderPreviewView(data: CommitAssistantData): string {
     .join("");
 
   return `
-    <h1>Review Changes</h1>
+    <section class="assistant-shell">
+    ${renderHeader("Review Changes", "Select the safe files CommitCraft should summarize before anything is sent to OpenRouter.")}
     ${renderStats(data)}
-    <section class="files">
-      <strong>Files to summarize</strong>
-      ${files}
+    <section class="panel files">
+      <strong class="section-title">Files to summarize</strong>
+      ${hasSummarizableFiles ? `<div>${files}</div>` : `<p class="muted">No safe text files are available to summarize.</p>`}
     </section>
     ${
       data.diffContext.excludedFiles.length > 0
-        ? `<section class="files"><strong>Excluded files</strong><ul>${excluded}</ul></section>`
+        ? `<section class="panel files"><strong class="section-title">Excluded files</strong><ul>${excluded}</ul></section>`
         : ""
     }
-    <section class="actions">
-      <button id="generate">Generate Message</button>
+    ${
+      hasSummarizableFiles
+        ? `<section class="actions action-bar"><button id="generate" class="primary-action">Generate Message</button></section>`
+        : ""
+    }
     </section>`;
 }
 
@@ -141,40 +181,58 @@ function renderGeneratedView(data: CommitAssistantData, pushTitle: string): stri
     return "";
   }
 
-  const messageText = `${message.summary}\n\n${message.description}`.trim();
   const files = data.diffContext.files.map((file) => `<li>${escapeHtml(file)}</li>`).join("");
 
   return `
-    <h1>CommitCraft Review</h1>
-    <section>
-      <label for="message">Commit message</label>
-      <textarea id="message">${escapeHtml(messageText)}</textarea>
+    <section class="assistant-shell">
+    ${renderHeader("CommitCraft Review", "Review the generated message, make edits, then choose the Git action to run.")}
+    <section class="panel message-fields">
+      <div>
+        <label class="field-label" for="summary">Commit message</label>
+        <input id="summary" value="${escapeHtml(message.summary)}">
+      </div>
+      <div>
+        <label class="field-label" for="description">Description</label>
+        <textarea id="description" class="description-box">${escapeHtml(message.description)}</textarea>
+      </div>
     </section>
     ${renderStats(data)}
-    <section class="files">
-      <strong>Affected files</strong>
+    <section class="panel files">
+      <strong class="section-title">Affected files</strong>
       <ul>${files}</ul>
     </section>
-    <section class="actions">
-      <button id="commit">Commit</button>
+    <section class="actions action-bar">
+      <button id="commit" class="primary-action">Commit</button>
       <button id="push" class="secondary" title="${escapeHtml(pushTitle)}" ${data.canPush ? "" : "disabled"}>Push</button>
       <button id="commitAndPush" title="${escapeHtml(pushTitle)}" ${data.canPush ? "" : "disabled"}>Commit and Push</button>
     </section>
-    ${data.canPush ? "" : `<p class="muted">${escapeHtml(pushTitle)}</p>`}`;
+    ${data.canPush ? "" : `<p class="muted">${escapeHtml(pushTitle)}</p>`}
+    </section>`;
 }
 
 function renderStats(data: CommitAssistantData): string {
+  const stats = data.diffContext.stats;
   return `
-    <section>
-      <dl>
-        ${data.modelUsed ? `<dt>Model</dt><dd>${escapeHtml(data.modelUsed)}</dd>` : ""}
-        <dt>Diff source</dt><dd>${escapeHtml(data.diffContext.diffSource)}</dd>
-        <dt>Files changed</dt><dd>${data.diffContext.stats.filesChanged}</dd>
-        <dt>Lines added</dt><dd>${data.diffContext.stats.linesAdded}</dd>
-        <dt>Lines removed</dt><dd>${data.diffContext.stats.linesRemoved}</dd>
-        ${data.message ? `<dt>Risk</dt><dd>${escapeHtml(data.message.riskLevel)}</dd>` : ""}
-      </dl>
+    <section class="panel">
+      <div class="stat-grid" aria-label="Git change statistics">
+        <div class="stat-card stat-files"><div class="stat-label">Files changed</div><div class="stat-value">${stats.filesChanged}</div></div>
+        <div class="stat-card stat-added"><div class="stat-label">Lines added</div><div class="stat-value">+${stats.linesAdded}</div></div>
+        <div class="stat-card stat-removed"><div class="stat-label">Lines removed</div><div class="stat-value">-${stats.linesRemoved}</div></div>
+      </div>
+      <div class="meta-grid" style="margin-top: 12px;">
+        ${renderMetaItem("Diff source", data.diffContext.diffSource)}
+        ${data.modelUsed ? renderMetaItem("Model", data.modelUsed) : ""}
+        ${data.message ? renderMetaItem("Risk", data.message.riskLevel) : ""}
+      </div>
     </section>`;
+}
+
+function renderHeader(title: string, subtitle: string): string {
+  return `<header class="hero"><h1>${escapeHtml(title)}</h1><p class="subtitle">${escapeHtml(subtitle)}</p></header>`;
+}
+
+function renderMetaItem(label: string, value: string): string {
+  return `<div class="meta-item"><div class="meta-label">${escapeHtml(label)}</div><div class="meta-value">${escapeHtml(value)}</div></div>`;
 }
 
 function escapeHtml(value: string): string {

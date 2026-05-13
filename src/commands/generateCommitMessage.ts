@@ -59,7 +59,10 @@ export async function generateCommitMessage(
             maxDiffCharacters: settings.maxDiffCharacters
           });
 
-          if (diffContext.diff.trim().length === 0 || diffContext.files.length === 0) {
+          if (
+            (diffContext.diff.trim().length === 0 || diffContext.files.length === 0) &&
+            diffContext.excludedFiles.length === 0
+          ) {
             await showPlainError("No safe text changes are available to summarize.");
             return;
           }

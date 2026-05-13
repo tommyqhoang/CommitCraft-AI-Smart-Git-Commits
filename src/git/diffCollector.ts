@@ -36,15 +36,21 @@ export interface TruncatedDiff {
 
 export interface DiffContext {
   diff: string;
+  fullDiff: string;
   diffSource: DiffSource;
   files: string[];
   excludedFiles: ExcludedDiffFile[];
   stats: ChangeStats;
   truncated: boolean;
   warnings: string[];
+  maxDiffCharacters: number;
 }
 
-export type ExcludedFileReason = "secret-like file" | "binary or generated asset" | "lockfile";
+export type ExcludedFileReason =
+  | "secret-like file"
+  | "binary or generated asset"
+  | "lockfile"
+  | "file too large";
 
 export interface ExcludedDiffFile {
   path: string;
@@ -91,10 +97,15 @@ export async function collectDiffContext(
   const statusFiles = hasStaged
     ? await listStagedFiles(workspacePath)
     : await listUncommittedFiles(workspacePath, options.includeUntrackedFiles);
-  const safeFiles = statusFiles.filter(isSafeDiffFile);
+  const oversizedFiles = hasStaged
+    ? []
+    : await listOversizedUntrackedFiles(workspacePath, statusFiles);
+  const oversizedSet = new Set(oversizedFiles);
+  const safeFiles = statusFiles.filter((file) => isSafeDiffFile(file) && !oversizedSet.has(file));
   const excludedFiles = statusFiles
     .map((file) => {
-      const reason = getExcludedFileReason(file);
+      const reason =
+        getExcludedFileReason(file) ?? (oversizedSet.has(file) ? "file too large" : undefined);
       return reason ? { path: file, reason } : undefined;
     })
     .filter((file): file is ExcludedDiffFile => file !== undefined)
@@ -103,7 +114,7 @@ export async function collectDiffContext(
 
   if (safeFiles.length < statusFiles.length) {
     warnings.push(
-      "Some ignored, binary, lock, or secret-like files were excluded from the prompt."
+      "Some ignored, binary, lock, oversized, or secret-like files were excluded from the prompt."
     );
   }
 
@@ -124,12 +135,14 @@ export async function collectDiffContext(
 
   return {
     diff: truncated.diff,
+    fullDiff: filteredDiff,
     diffSource,
     files: safeFiles,
     excludedFiles,
     stats,
     truncated: truncated.truncated,
-    warnings
+    warnings,
+    maxDiffCharacters: options.maxDiffCharacters
   };
 }
 
@@ -139,13 +152,16 @@ export function filterDiffContextToFiles(
 ): DiffContext {
   const selectedSet = new Set(selectedFiles);
   const files = context.files.filter((file) => selectedSet.has(file));
-  const diff = filterDiffBySafeFiles(context.diff, files);
+  const fullDiff = filterDiffBySafeFiles(context.fullDiff, files);
+  const truncated = truncateDiff(fullDiff, context.maxDiffCharacters);
 
   return {
     ...context,
-    diff,
+    diff: truncated.diff,
+    fullDiff,
     files,
-    stats: calculateChangeStats(diff)
+    stats: calculateChangeStats(fullDiff),
+    truncated: truncated.truncated
   };
 }
 
@@ -171,6 +187,27 @@ async function listUntrackedFiles(workspacePath: string): Promise<string[]> {
   return parseNullDelimited(
     await git(workspacePath, ["ls-files", "--others", "--exclude-standard", "-z"])
   );
+}
+
+async function listOversizedUntrackedFiles(
+  workspacePath: string,
+  statusFiles: string[]
+): Promise<string[]> {
+  const untrackedSet = new Set(await listUntrackedFiles(workspacePath));
+  const oversizedFiles: string[] = [];
+
+  for (const file of statusFiles) {
+    if (!untrackedSet.has(file) || !isSafeDiffFile(file)) {
+      continue;
+    }
+
+    const fileStat = await stat(path.join(workspacePath, file)).catch(() => undefined);
+    if (fileStat?.isFile() && fileStat.size > 100_000) {
+      oversizedFiles.push(file);
+    }
+  }
+
+  return oversizedFiles;
 }
 
 export async function getRepositoryName(workspacePath: string): Promise<string> {

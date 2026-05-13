@@ -32,7 +32,7 @@ export function buildCommitPrompt(input: CommitPromptInput): string {
     "}",
     "",
     "Rules:",
-    "- Use one of: feat, fix, docs, refactor, test, chore, build, ci.",
+    "- Use one of: feat, fix, docs, refactor, test, chore, build, ci, style, perf, revert.",
     "- Prefer the most user-visible intent when the diff is mixed.",
     "- Keep the summary under 72 characters when possible.",
     "- Do not mention tools, prompts, or OpenRouter unless the diff changes them.",

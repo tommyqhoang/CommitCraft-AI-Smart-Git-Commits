@@ -12,7 +12,7 @@ The extension is intentionally not autonomous. It never commits or pushes withou
 - Prefer staged changes when staged changes exist.
 - Fall back to safe unstaged and untracked files when nothing is staged.
 - Show change stats: files changed, lines added, and lines removed.
-- Show excluded files with reasons, such as secret-like file, lockfile, or binary/generated asset.
+- Show excluded files with reasons, such as secret-like file, lockfile, binary/generated asset, or file too large.
 - Generate editable conventional-style commit messages through OpenRouter.
 - Store the OpenRouter API key in VS Code `SecretStorage`.
 - Commit, push, or commit-and-push only after user confirmation.
@@ -65,7 +65,7 @@ CommitCraft is designed to keep the developer in control:
 
 - API keys are stored only in VS Code `SecretStorage`.
 - API keys are never sent in prompts and are redacted from surfaced OpenRouter error bodies.
-- `.env`, secret-like paths, certificate/key files, lockfiles, binary files, and generated assets are excluded from prompt context.
+- `.env`, secret-like paths, certificate/key files, lockfiles, binary/generated assets, and oversized untracked files are excluded from prompt context.
 - Excluded files are shown in the assistant before generation.
 - Staged changes are preferred. If staged changes exist, unstaged and untracked files are not summarized.
 - If no staged changes exist, the assistant shows safe unstaged and untracked files for selection.

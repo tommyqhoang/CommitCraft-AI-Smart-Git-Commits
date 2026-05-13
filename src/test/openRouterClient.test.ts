@@ -56,4 +56,29 @@ describe("OpenRouterClient", () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
+
+  it("aborts requests that exceed the configured timeout", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn(
+      (_input: string, init: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init.signal?.addEventListener("abort", () => {
+            reject(new Error("request aborted"));
+          });
+        })
+    );
+    const client = new OpenRouterClient(fetchMock, { timeoutMs: 10 });
+
+    const request = client.generateCommitMessage({
+      token: "secret-token",
+      model: "openrouter/auto",
+      fallbackModel: "openrouter/auto",
+      prompt: "prompt text"
+    });
+
+    const expectation = expect(request).rejects.toThrow("timed out");
+    await vi.advanceTimersByTimeAsync(10);
+    await expectation;
+    vi.useRealTimers();
+  });
 });

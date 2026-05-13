@@ -127,6 +127,53 @@ describe("diff safety helpers", () => {
       await rm(repoPath, { recursive: true, force: true });
     }
   });
+
+  it("filters selected files from the full diff even when the preview diff was truncated", async () => {
+    const repoPath = await createGitRepo();
+
+    try {
+      await writeFile(path.join(repoPath, "staged.txt"), `base\n${"x".repeat(500)}\n`);
+      await writeFile(path.join(repoPath, "tracked.txt"), "base\nselected\n");
+
+      const context = await collectDiffContext(repoPath, {
+        includeUntrackedFiles: false,
+        maxDiffCharacters: 120
+      });
+      const selected = filterDiffContextToFiles(context, ["tracked.txt"]);
+
+      expect(context.truncated).toBe(true);
+      expect(context.diff).not.toContain("tracked.txt");
+      expect(selected.diff).toContain("tracked.txt");
+      expect(selected.stats).toEqual({
+        filesChanged: 1,
+        linesAdded: 1,
+        linesRemoved: 0
+      });
+    } finally {
+      await rm(repoPath, { recursive: true, force: true });
+    }
+  });
+
+  it("excludes oversized untracked text files with a visible reason", async () => {
+    const repoPath = await createGitRepo();
+
+    try {
+      await writeFile(path.join(repoPath, "large.txt"), `${"x".repeat(100_001)}\n`);
+
+      const context = await collectDiffContext(repoPath, {
+        includeUntrackedFiles: true,
+        maxDiffCharacters: 60_000
+      });
+
+      expect(context.files).not.toContain("large.txt");
+      expect(context.excludedFiles).toContainEqual({
+        path: "large.txt",
+        reason: "file too large"
+      });
+    } finally {
+      await rm(repoPath, { recursive: true, force: true });
+    }
+  });
 });
 
 async function createGitRepo(): Promise<string> {

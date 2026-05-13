@@ -15,7 +15,7 @@ Use this checklist in a VS Code Extension Development Host before packaging or p
 - Run `CommitCraft: Open Commit Assistant` from the Command Palette, Source Control action, or status bar.
 - Confirm the assistant opens a changed-file preview before any OpenRouter request is made.
 - Confirm safe changed files can be selected or unselected before generation.
-- Confirm excluded files are shown with reasons.
+- Confirm excluded files are shown with reasons, including secret-like, lockfile, binary/generated asset, and oversized untracked files.
 - Click `Generate Message` to create the draft commit message.
 - Confirm staged changes are preferred when staged changes exist.
 - Confirm unstaged changes are summarized when nothing is staged.
@@ -30,7 +30,7 @@ Use this checklist in a VS Code Extension Development Host before packaging or p
 - Remove the OpenRouter token and confirm the assistant offers token setup, then continues after a token is saved.
 - Use an invalid token and confirm the OpenRouter error is shown in plain language with a retry action.
 - Create a large diff above `commitCraft.maxDiffCharacters` and confirm the review panel shows a truncation warning.
-- Add `.env`, binary, secret-like, and lockfile changes and confirm they are excluded from the prompt context.
+- Add `.env`, binary, secret-like, lockfile, and oversized untracked changes and confirm they are excluded from the prompt context.
 - Use a repository with no changes and confirm a clear no-change message appears.
 - Use a repository with no remote and confirm push is disabled or explained.
 - Check detached HEAD behavior and confirm push is blocked with a plain-language message.

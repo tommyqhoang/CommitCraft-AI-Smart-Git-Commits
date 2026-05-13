@@ -5,6 +5,7 @@ import { renderCommitAssistantHtml } from "../ui/commitAssistantHtml";
 
 const baseDiffContext: DiffContext = {
   diff: "diff --git a/src/a.ts b/src/a.ts\n+const a = 1;\n",
+  fullDiff: "diff --git a/src/a.ts b/src/a.ts\n+const a = 1;\n",
   diffSource: "unstaged" as const,
   files: ["src/a.ts", "src/b.ts"],
   excludedFiles: [{ path: ".env", reason: "secret-like file" }],
@@ -14,7 +15,8 @@ const baseDiffContext: DiffContext = {
     linesRemoved: 0
   },
   truncated: false,
-  warnings: []
+  warnings: [],
+  maxDiffCharacters: 60_000
 };
 
 describe("renderCommitAssistantHtml", () => {
@@ -39,6 +41,81 @@ describe("renderCommitAssistantHtml", () => {
     expect(html).not.toContain('id="commit"');
   });
 
+  it("renders line stats as signed visual stat cards", () => {
+    const html = renderCommitAssistantHtml(
+      {
+        modelUsed: undefined,
+        diffContext: {
+          ...baseDiffContext,
+          stats: {
+            filesChanged: 3,
+            linesAdded: 12,
+            linesRemoved: 5
+          }
+        },
+        recovered: false,
+        canPush: true,
+        message: undefined
+      },
+      { cspSource: "vscode-resource:", nonce: "test-nonce" }
+    );
+
+    expect(html).toContain('class="stat-card stat-added"');
+    expect(html).toContain("+12");
+    expect(html).toContain('class="stat-card stat-removed"');
+    expect(html).toContain("-5");
+    expect(html).toContain('class="stat-card stat-files"');
+  });
+
+  it("uses a clearer assistant shell with title, subtitle, and primary actions", () => {
+    const html = renderCommitAssistantHtml(
+      {
+        modelUsed: "openrouter/auto",
+        diffContext: baseDiffContext,
+        recovered: false,
+        canPush: true,
+        message: {
+          summary: "feat: improve commit assistant ui",
+          description: "Adds clearer stat cards and action layout.",
+          riskLevel: "low",
+          notableFiles: ["src/a.ts"]
+        }
+      },
+      { cspSource: "vscode-resource:", nonce: "test-nonce" }
+    );
+
+    expect(html).toContain('class="assistant-shell"');
+    expect(html).toContain("Review the generated message");
+    expect(html).toContain('class="actions action-bar"');
+    expect(html).toContain('class="primary-action"');
+  });
+
+  it("renders generated summary and description as separate editable fields", () => {
+    const html = renderCommitAssistantHtml(
+      {
+        modelUsed: "openrouter/auto",
+        diffContext: baseDiffContext,
+        recovered: false,
+        canPush: true,
+        message: {
+          summary: "feat: split commit message fields",
+          description: "Shows the summary separately from a longer scrollable description.",
+          riskLevel: "low",
+          notableFiles: ["src/a.ts"]
+        }
+      },
+      { cspSource: "vscode-resource:", nonce: "test-nonce" }
+    );
+
+    expect(html).toContain('id="summary"');
+    expect(html).toContain('value="feat: split commit message fields"');
+    expect(html).toContain('id="description"');
+    expect(html).toContain('class="description-box"');
+    expect(html).toContain("Shows the summary separately");
+    expect(html).toContain("function commitMessageValue()");
+    expect(html).toContain("message: commitMessageValue()");
+  });
+
   it("shows Commit and Push whenever push is available", () => {
     const html = renderCommitAssistantHtml(
       {
@@ -59,5 +136,32 @@ describe("renderCommitAssistantHtml", () => {
     expect(html).toContain('id="commitAndPush"');
     expect(html).toContain("Commit and Push");
     expect(html).not.toContain('id="commitAndPush" disabled');
+  });
+
+  it("does not offer generation when no safe files are available", () => {
+    const html = renderCommitAssistantHtml(
+      {
+        diffContext: {
+          ...baseDiffContext,
+          diff: "",
+          fullDiff: "",
+          files: [],
+          excludedFiles: [{ path: ".env", reason: "secret-like file" }],
+          stats: {
+            filesChanged: 0,
+            linesAdded: 0,
+            linesRemoved: 0
+          }
+        },
+        recovered: false,
+        canPush: false,
+        pushDisabledReason: "No Git remote is configured for this repository."
+      },
+      { cspSource: "vscode-resource:", nonce: "test-nonce" }
+    );
+
+    expect(html).toContain("No safe text files are available to summarize.");
+    expect(html).toContain(".env");
+    expect(html).not.toContain('id="generate"');
   });
 });
