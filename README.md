@@ -1,81 +1,80 @@
-# CommitCraft-AI-Smart-Git-Commits
+# CommitCraft AI: Smart Git Commits
 
-CommitCraft-AI-Smart-Git-Commits is a simple Visual Studio Code extension for turning local code changes into clear Git commits. It reviews the current Git diff, uses OpenRouter to draft a commit summary and description, then lets the user commit and push to GitHub from a polished VS Code UI.
+CommitCraft AI is a Visual Studio Code extension that helps developers turn local Git changes into clear, editable commit messages with OpenRouter. It opens a focused commit assistant, shows the files that will be summarized, asks for an OpenRouter API key only when needed, generates a commit message, then lets the user commit, push, or commit-and-push with confirmation.
 
-The goal is not to replace developer judgment. The extension should make the commit workflow faster, clearer, and safer while keeping the user in control before anything is committed or pushed.
+The extension is intentionally not autonomous. It never commits or pushes without an explicit user action.
 
-## Core Features
+## Features
 
-- Generate a smart commit summary from the current Git diff.
-- Generate a longer commit description explaining the intent and important changes.
-- Show simple change stats before commit: total files changed, total lines added, and total lines removed.
-- Let the user review and edit the generated commit message before committing.
-- Commit selected changes or all staged changes through VS Code's Git integration.
-- Push the current branch to GitHub after a successful commit.
-- Support OpenRouter API tokens through VS Code settings or secure secret storage.
-- Default to `openrouter/auto`, with an easy option to use `openrouter/free`.
-- Keep the workflow simple: review changes, generate message, commit, push.
+- Open a single **CommitCraft: Open Commit Assistant** workflow from the Command Palette, Source Control title button, or status bar.
+- Preview changed files before sending anything to OpenRouter.
+- Choose which safe files should be summarized.
+- Prefer staged changes when staged changes exist.
+- Fall back to safe unstaged and untracked files when nothing is staged.
+- Show change stats: files changed, lines added, and lines removed.
+- Show excluded files with reasons, such as secret-like file, lockfile, or binary/generated asset.
+- Generate editable conventional-style commit messages through OpenRouter.
+- Store the OpenRouter API key in VS Code `SecretStorage`.
+- Commit, push, or commit-and-push only after user confirmation.
+- Support multi-root workspaces by preferring the workspace that contains the active editor.
 
-## User Experience
+## How To Use
 
-CommitCraft-AI-Smart-Git-Commits should feel like a native VS Code tool.
+1. Open a Git repository in VS Code.
+2. Make local changes.
+3. Run **CommitCraft: Open Commit Assistant** from the Command Palette, click the Source Control sparkle button, or click **CommitCraft** in the status bar.
+4. Review the changed files, excluded files, and line stats.
+5. Select the safe files you want CommitCraft to summarize.
+6. Click **Generate Message**.
+7. If prompted, paste your OpenRouter API key. It is stored in VS Code `SecretStorage`.
+8. Review and edit the generated commit message.
+9. Click **Commit**, **Push**, or **Commit and Push**.
+10. Confirm the Git action in VS Code before it runs.
 
-The main workflow should be available from:
+## Commands
 
-- Source Control view action button.
-- Command Palette command: `CommitCraft: Generate Smart Git Commit`.
-- Optional status bar item when the workspace has Git changes.
+| Command                                   | Purpose                                                                                |
+| ----------------------------------------- | -------------------------------------------------------------------------------------- |
+| `CommitCraft: Open Commit Assistant`      | Primary workflow for reviewing changes, generating a message, committing, and pushing. |
+| `CommitCraft: Set OpenRouter API Token`   | Saves or replaces the OpenRouter API key in VS Code `SecretStorage`.                   |
+| `CommitCraft: Clear OpenRouter API Token` | Removes the saved OpenRouter API key.                                                  |
 
-Recommended flow:
+`CommitCraft: Generate Smart Git Commit` is still registered for backward compatibility, but it is hidden from the Command Palette. Use **Open Commit Assistant** for the current workflow.
 
-1. User opens a Git workspace with local changes.
-2. User clicks **Generate Smart Git Commit**.
-3. Extension reads the current Git diff.
-4. Extension sends a compact prompt to OpenRouter.
-5. UI displays:
-   - commit summary
-   - commit description
-   - total files changed
-   - total lines added
-   - total lines removed
-   - affected files
-   - model used
-   - token/error status when relevant
-6. User edits the message if needed.
-7. User clicks **Commit**.
-8. User clicks **Push** or enables **Commit and Push** for a one-step finish.
-
-The extension must always ask for user confirmation before committing or pushing.
-
-## OpenRouter Configuration
-
-The extension will call OpenRouter's chat completions API.
-
-Recommended defaults:
+## Settings
 
 ```json
 {
   "commitCraft.openRouterModel": "openrouter/auto",
   "commitCraft.fallbackModel": "openrouter/free",
   "commitCraft.maxDiffCharacters": 60000,
-  "commitCraft.includeUntrackedFiles": true,
-  "commitCraft.autoPushAfterCommit": false
+  "commitCraft.includeUntrackedFiles": true
 }
 ```
 
-Token handling:
+| Setting                             | Default           | Description                                                                      |
+| ----------------------------------- | ----------------- | -------------------------------------------------------------------------------- |
+| `commitCraft.openRouterModel`       | `openrouter/auto` | Primary OpenRouter model used for commit message generation.                     |
+| `commitCraft.fallbackModel`         | `openrouter/free` | Fallback model used when the primary model fails for retryable reasons.          |
+| `commitCraft.maxDiffCharacters`     | `60000`           | Maximum diff size sent to OpenRouter. Larger diffs are truncated with a warning. |
+| `commitCraft.includeUntrackedFiles` | `true`            | Includes safe untracked text files when no staged changes exist.                 |
 
-- Prefer VS Code `SecretStorage` for the OpenRouter API token.
-- Never store API tokens in the workspace.
-- Never log API tokens.
-- Provide a command: `CommitCraft: Set OpenRouter API Token`.
-- Provide a command: `CommitCraft: Clear OpenRouter API Token`.
+## Safety Model
 
-## Commit Message Style
+CommitCraft is designed to keep the developer in control:
 
-Generated messages should be concise, useful, and editable.
+- API keys are stored only in VS Code `SecretStorage`.
+- API keys are never sent in prompts and are redacted from surfaced OpenRouter error bodies.
+- `.env`, secret-like paths, certificate/key files, lockfiles, binary files, and generated assets are excluded from prompt context.
+- Excluded files are shown in the assistant before generation.
+- Staged changes are preferred. If staged changes exist, unstaged and untracked files are not summarized.
+- If no staged changes exist, the assistant shows safe unstaged and untracked files for selection.
+- Commit and push actions always require confirmation.
+- Push is disabled when the repository has no remote or is in a detached HEAD state.
 
-Default format:
+## Commit Message Format
+
+CommitCraft asks OpenRouter for structured JSON and renders the result as an editable commit message:
 
 ```text
 <type>: <short summary>
@@ -83,16 +82,7 @@ Default format:
 <description>
 ```
 
-Examples:
-
-```text
-feat: add OpenRouter-powered commit generation
-
-Adds the extension command, diff collection, and commit message generation flow.
-The user can review the generated summary and description before committing.
-```
-
-Recommended commit types:
+Supported commit types include:
 
 - `feat`
 - `fix`
@@ -102,137 +92,67 @@ Recommended commit types:
 - `chore`
 - `build`
 - `ci`
+- `style`
+- `perf`
+- `revert`
 
-The AI should choose the type based on the diff. If the change is mixed, it should prefer the most user-visible intent.
+Example:
 
-## Prompting Requirements
+```text
+feat: add commit assistant preview
 
-The prompt should be deterministic and focused on commit quality.
-
-The model should receive:
-
-- repository name
-- branch name
-- staged diff when available
-- unstaged diff when no staged diff exists
-- list of changed files
-- total files changed, lines added, and lines removed
-- project language hints when cheap to detect
-
-The model should return structured JSON:
-
-```json
-{
-  "summary": "feat: add smart commit workflow",
-  "description": "Adds the VS Code command, OpenRouter request flow, and commit review UI.",
-  "riskLevel": "low",
-  "changeStats": {
-    "filesChanged": 2,
-    "linesAdded": 120,
-    "linesRemoved": 12
-  },
-  "notableFiles": ["src/extension.ts", "package.json"]
-}
+Adds a review step that lets users select safe changed files before generating a commit message.
 ```
-
-The extension should validate the response before showing it. If JSON parsing fails, it should fall back to a plain-text message and clearly mark that the response was recovered.
-
-## Safety Rules
-
-CommitCraft-AI-Smart-Git-Commits must be safe by default.
-
-- Do not commit without an explicit user action.
-- Do not push without an explicit user action.
-- Do not send ignored files, secrets, `.env` files, or binary file contents to OpenRouter.
-- Respect `.gitignore`.
-- Prefer staged changes. If nothing is staged, explain that the extension will summarize unstaged changes.
-- Warn when the diff is truncated because it exceeds `commitCraft.maxDiffCharacters`.
-- Show OpenRouter errors in plain language with a retry option.
-- Handle missing Git, missing remote, detached HEAD, and no-change states gracefully.
 
 ## Architecture
 
-Implementation stack:
-
-- TypeScript
-- VS Code Extension API
-- VS Code Git extension API where possible
-- Native `fetch` for OpenRouter requests
-- ESLint and Prettier for code quality
-- Vitest or VS Code extension tests for unit coverage
-
-Current structure:
-
 ```text
-CommitCraft-AI-Smart-Git-Commits/
-  src/
-    extension.ts
-    commands/
-      generateCommitMessage.ts
-      setOpenRouterToken.ts
-      clearOpenRouterToken.ts
-    git/
-      gitService.ts
-      diffCollector.ts
-      changeStats.ts
-    openrouter/
-      openRouterClient.ts
-      commitPrompt.ts
-      responseParser.ts
-    ui/
-      commitReviewPanel.ts
-      notifications.ts
-    config/
-      settings.ts
-    test/
-      responseParser.test.ts
-      commitPrompt.test.ts
-  package.json
-  tsconfig.json
-  eslint.config.js
-  README.md
+src/
+  extension.ts
+  commands/
+    generateCommitMessage.ts
+    setOpenRouterToken.ts
+    clearOpenRouterToken.ts
+    workspaceResolver.ts
+  config/
+    settings.ts
+    vscodeSettings.ts
+  git/
+    changeStats.ts
+    diffCollector.ts
+    gitService.ts
+  openrouter/
+    commitPrompt.ts
+    openRouterClient.ts
+    responseParser.ts
+  ui/
+    commitAssistantHtml.ts
+    commitReviewPanel.ts
+    notifications.ts
+  test/
+    *.test.ts
+    suite/
 ```
 
 Key boundaries:
 
-- `git/` owns repository state, diffs, commits, and pushes.
-- `openrouter/` owns API calls, prompting, and response parsing.
-- `ui/` owns VS Code panels, commands, notifications, and user confirmation.
+- `commands/` owns VS Code command flow and workspace selection.
+- `git/` owns Git status, diff collection, file safety filtering, change stats, commit, push, and push readiness.
+- `openrouter/` owns prompt creation, OpenRouter API calls, fallback behavior, response validation, and response recovery.
+- `ui/` owns the assistant webview, HTML rendering, notifications, and confirmation prompts.
 - `config/` owns extension settings and defaults.
-
-## UI Principles
-
-- Keep the interface compact and focused on the next action.
-- Make generated text editable before commit.
-- Use clear primary actions: **Generate**, **Commit**, **Push**, **Commit and Push**.
-- Show file context without overwhelming the user.
-- Make errors actionable.
-- Avoid modal-heavy flows except for confirmation before commit and push.
-- Match VS Code theme colors and accessibility expectations.
-
-## Release Quality
-
-Before release, the project should include:
-
-- TypeScript strict mode.
-- Linting.
-- Formatting.
-- Unit tests for prompt creation, response parsing, config loading, and diff filtering.
-- Unit tests for change-stat calculation: files changed, lines added, and lines removed.
-- Integration tests for command registration.
-- Manual test checklist for the VS Code Extension Development Host.
-- Clear marketplace-ready extension metadata.
-- No hardcoded API tokens.
-- No unfinished task markers or incomplete implementation paths in released code.
 
 ## Development
 
-The repository now includes the TypeScript VS Code extension scaffold, strict type checking, Vitest unit tests, VS Code extension-host tests, ESLint, Prettier, and VSCE packaging.
+Install dependencies:
+
+```bash
+npm install
+```
 
 Common commands:
 
 ```bash
-npm install
 npm run compile
 npm test
 npm run lint
@@ -241,21 +161,50 @@ npm run vscode:test
 npm run package
 ```
 
-Manual release checks live in [`docs/MANUAL_QA.md`](docs/MANUAL_QA.md).
+Development scripts:
 
-## Manual QA Checklist
+| Script                 | Purpose                                            |
+| ---------------------- | -------------------------------------------------- |
+| `npm run compile`      | Type-checks and builds the extension into `dist/`. |
+| `npm run watch`        | Runs TypeScript in watch mode.                     |
+| `npm test`             | Runs Vitest unit tests.                            |
+| `npm run lint`         | Runs ESLint.                                       |
+| `npm run format`       | Formats the repository with Prettier.              |
+| `npm run format:check` | Checks Prettier formatting.                        |
+| `npm run vscode:test`  | Runs VS Code extension-host tests.                 |
+| `npm run package`      | Builds a `.vsix` package with `vsce`.              |
 
-- Generates a message for staged changes.
-- Generates a message for unstaged changes when nothing is staged.
-- Handles no changes with a clear message.
-- Handles missing OpenRouter token with setup guidance.
-- Handles invalid OpenRouter token with a useful error.
-- Handles large diffs with truncation notice.
-- Shows accurate totals for files changed, lines added, and lines removed.
-- Does not include ignored files or obvious secret files in prompts.
-- Commits only after confirmation.
-- Pushes only after confirmation.
-- Works in a repo with no remote by disabling push and explaining why.
+## Testing
+
+The test suite covers:
+
+- Change-stat calculation.
+- Diff safety filtering.
+- Excluded-file reasons.
+- Selected-file diff filtering.
+- Prompt generation.
+- OpenRouter fallback behavior.
+- Response parsing and plain-text recovery.
+- Settings defaults and normalization.
+- Workspace selection for multi-root workspaces.
+- Assistant HTML rendering.
+- VS Code command registration.
+
+Manual QA steps live in [docs/MANUAL_QA.md](docs/MANUAL_QA.md).
+
+## Packaging
+
+Build a VSIX package:
+
+```bash
+npm run package
+```
+
+The package is written to:
+
+```text
+commitcraft-ai-smart-git-commits-0.1.1.vsix
+```
 
 ## Non-Goals
 

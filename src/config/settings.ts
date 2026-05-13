@@ -3,7 +3,6 @@ export interface AiCommitSettings {
   fallbackModel: string;
   maxDiffCharacters: number;
   includeUntrackedFiles: boolean;
-  showCommitAndPush: boolean;
 }
 
 export interface ConfigReader {
@@ -17,8 +16,7 @@ export function readSettingsFromConfig(config: ConfigReader): AiCommitSettings {
     openRouterModel: readNonEmptyString(config, "openRouterModel", "openrouter/auto"),
     fallbackModel: readNonEmptyString(config, "fallbackModel", "openrouter/free"),
     maxDiffCharacters: Math.max(1000, config.get<number>("maxDiffCharacters") ?? 60000),
-    includeUntrackedFiles: config.get<boolean>("includeUntrackedFiles") ?? true,
-    showCommitAndPush: config.get<boolean>("showCommitAndPush") ?? false  // enables the Commit and Push button
+    includeUntrackedFiles: config.get<boolean>("includeUntrackedFiles") ?? true
   };
 }
 

@@ -12,8 +12,7 @@ describe("readSettingsFromConfig", () => {
       openRouterModel: "openrouter/auto",
       fallbackModel: "openrouter/free",
       maxDiffCharacters: 60000,
-      includeUntrackedFiles: true,
-      showCommitAndPush: false
+      includeUntrackedFiles: true
     });
   });
 

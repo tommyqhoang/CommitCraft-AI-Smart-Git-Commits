@@ -33,7 +33,13 @@ export class GitService {
       await this.git(options.workspacePath, ["add", "--", ...options.filesToStage]);
     }
 
-    await this.git(options.workspacePath, ["commit", "-m", options.message]);
+    await this.git(options.workspacePath, [
+      "commit",
+      "-m",
+      options.message,
+      "--",
+      ...options.filesToStage
+    ]);
   }
 
   async getPushReadiness(workspacePath: string): Promise<PushReadiness> {

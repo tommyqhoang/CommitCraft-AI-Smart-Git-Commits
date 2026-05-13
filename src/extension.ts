@@ -6,16 +6,17 @@ import { setOpenRouterToken } from "./commands/setOpenRouterToken";
 
 export function activate(context: vscode.ExtensionContext): void {
   const statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
-  statusBarItem.command = "commitCraft.generateCommitMessage";
+  statusBarItem.command = "commitCraft.openCommitAssistant";
   statusBarItem.text = "$(sparkle) CommitCraft";
-  statusBarItem.tooltip = "Generate a smart Git commit message from local changes";
+  statusBarItem.tooltip = "Open CommitCraft commit assistant";
   statusBarItem.show();
+
+  const openCommitAssistant = () => generateCommitMessage(context);
 
   context.subscriptions.push(
     statusBarItem,
-    vscode.commands.registerCommand("commitCraft.generateCommitMessage", () =>
-      generateCommitMessage(context)
-    ),
+    vscode.commands.registerCommand("commitCraft.openCommitAssistant", openCommitAssistant),
+    vscode.commands.registerCommand("commitCraft.generateCommitMessage", openCommitAssistant),
     vscode.commands.registerCommand("commitCraft.setOpenRouterToken", () =>
       setOpenRouterToken(context)
     ),

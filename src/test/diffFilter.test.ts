@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 
-import { collectDiffContext } from "../git/diffCollector";
+import { collectDiffContext, filterDiffContextToFiles } from "../git/diffCollector";
 import { isSafeDiffFile, truncateDiff } from "../git/diffCollector";
 
 const execFileAsync = promisify(execFile);
@@ -72,6 +72,55 @@ describe("diff safety helpers", () => {
       expect(context.stats).toEqual({
         filesChanged: 1,
         linesAdded: 3,
+        linesRemoved: 0
+      });
+    } finally {
+      await rm(repoPath, { recursive: true, force: true });
+    }
+  });
+
+  it("reports excluded files with developer-readable reasons", async () => {
+    const repoPath = await createGitRepo();
+
+    try {
+      await writeFile(path.join(repoPath, ".env"), "OPENROUTER_API_KEY=secret\n");
+      await writeFile(path.join(repoPath, "package-lock.json"), "{}\n");
+      await writeFile(path.join(repoPath, "assets.png"), "not really binary\n");
+
+      const context = await collectDiffContext(repoPath, {
+        includeUntrackedFiles: true,
+        maxDiffCharacters: 60_000
+      });
+
+      expect(context.excludedFiles).toEqual([
+        { path: ".env", reason: "secret-like file" },
+        { path: "assets.png", reason: "binary or generated asset" },
+        { path: "package-lock.json", reason: "lockfile" }
+      ]);
+    } finally {
+      await rm(repoPath, { recursive: true, force: true });
+    }
+  });
+
+  it("can narrow a collected diff context to selected files", async () => {
+    const repoPath = await createGitRepo();
+
+    try {
+      await writeFile(path.join(repoPath, "staged.txt"), "base\nstaged\n");
+      await writeFile(path.join(repoPath, "tracked.txt"), "base\ntracked\n");
+
+      const context = await collectDiffContext(repoPath, {
+        includeUntrackedFiles: false,
+        maxDiffCharacters: 60_000
+      });
+      const selected = filterDiffContextToFiles(context, ["tracked.txt"]);
+
+      expect(selected.files).toEqual(["tracked.txt"]);
+      expect(selected.diff).toContain("tracked.txt");
+      expect(selected.diff).not.toContain("staged.txt");
+      expect(selected.stats).toEqual({
+        filesChanged: 1,
+        linesAdded: 1,
         linesRemoved: 0
       });
     } finally {

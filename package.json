@@ -33,6 +33,7 @@
     "Other"
   ],
   "activationEvents": [
+    "onCommand:commitCraft.openCommitAssistant",
     "onCommand:commitCraft.generateCommitMessage",
     "onCommand:commitCraft.setOpenRouterToken",
     "onCommand:commitCraft.clearOpenRouterToken"
@@ -41,10 +42,15 @@
   "contributes": {
     "commands": [
       {
-        "command": "commitCraft.generateCommitMessage",
-        "title": "CommitCraft: Generate Smart Git Commit",
+        "command": "commitCraft.openCommitAssistant",
+        "title": "CommitCraft: Open Commit Assistant",
         "category": "CommitCraft",
         "icon": "$(sparkle)"
+      },
+      {
+        "command": "commitCraft.generateCommitMessage",
+        "title": "CommitCraft: Generate Smart Git Commit",
+        "category": "CommitCraft"
       },
       {
         "command": "commitCraft.setOpenRouterToken",
@@ -80,18 +86,19 @@
           "type": "boolean",
           "default": true,
           "description": "Include safe untracked text files in CommitCraft prompt context."
-        },
-        "commitCraft.showCommitAndPush": {
-          "type": "boolean",
-          "default": false,
-          "description": "Show the Commit and Push button in the review panel (requires a configured remote)."
         }
       }
     },
     "menus": {
-      "scm/title": [
+      "commandPalette": [
         {
           "command": "commitCraft.generateCommitMessage",
+          "when": "false"
+        }
+      ],
+      "scm/title": [
+        {
+          "command": "commitCraft.openCommitAssistant",
           "group": "navigation"
         }
       ]

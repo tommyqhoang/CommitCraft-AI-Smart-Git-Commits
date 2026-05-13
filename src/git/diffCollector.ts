@@ -8,13 +8,23 @@ import { calculateChangeStats, type ChangeStats } from "./changeStats";
 
 const execFileAsync = promisify(execFile);
 
-const unsafeFilePatterns = [
-  /^\.env(?:\.|$)/i,
-  /(^|\/)\.env(?:\.|$)/i,
-  /(^|\/)(?:secret|secrets|credential|credentials|token|tokens)(?:\/|\.|$)/i,
-  /\.(?:key|pem|p12|pfx|crt|cer|der)$/i,
-  /\.(?:png|jpe?g|gif|webp|avif|ico|pdf|zip|gz|tar|tgz|7z|mp4|mov|mp3|wav|woff2?|ttf|otf)$/i,
-  /(?:^|\/)(?:package-lock\.json|pnpm-lock\.yaml|yarn\.lock)$/i
+const unsafeFilePatterns: { pattern: RegExp; reason: ExcludedFileReason }[] = [
+  { pattern: /^\.env(?:\.|$)/i, reason: "secret-like file" },
+  { pattern: /(^|\/)\.env(?:\.|$)/i, reason: "secret-like file" },
+  {
+    pattern: /(^|\/)(?:secret|secrets|credential|credentials|token|tokens)(?:\/|\.|$)/i,
+    reason: "secret-like file"
+  },
+  { pattern: /\.(?:key|pem|p12|pfx|crt|cer|der)$/i, reason: "secret-like file" },
+  {
+    pattern:
+      /\.(?:png|jpe?g|gif|webp|avif|ico|pdf|zip|gz|tar|tgz|7z|mp4|mov|mp3|wav|woff2?|ttf|otf)$/i,
+    reason: "binary or generated asset"
+  },
+  {
+    pattern: /(?:^|\/)(?:package-lock\.json|pnpm-lock\.yaml|yarn\.lock)$/i,
+    reason: "lockfile"
+  }
 ];
 
 export type DiffSource = "staged" | "unstaged";
@@ -28,9 +38,17 @@ export interface DiffContext {
   diff: string;
   diffSource: DiffSource;
   files: string[];
+  excludedFiles: ExcludedDiffFile[];
   stats: ChangeStats;
   truncated: boolean;
   warnings: string[];
+}
+
+export type ExcludedFileReason = "secret-like file" | "binary or generated asset" | "lockfile";
+
+export interface ExcludedDiffFile {
+  path: string;
+  reason: ExcludedFileReason;
 }
 
 export interface DiffCollectorOptions {
@@ -39,8 +57,12 @@ export interface DiffCollectorOptions {
 }
 
 export function isSafeDiffFile(filePath: string): boolean {
+  return getExcludedFileReason(filePath) === undefined;
+}
+
+export function getExcludedFileReason(filePath: string): ExcludedFileReason | undefined {
   const normalized = filePath.replaceAll("\\", "/");
-  return !unsafeFilePatterns.some((pattern) => pattern.test(normalized));
+  return unsafeFilePatterns.find(({ pattern }) => pattern.test(normalized))?.reason;
 }
 
 export function truncateDiff(diff: string, maxCharacters: number): TruncatedDiff {
@@ -70,6 +92,13 @@ export async function collectDiffContext(
     ? await listStagedFiles(workspacePath)
     : await listUncommittedFiles(workspacePath, options.includeUntrackedFiles);
   const safeFiles = statusFiles.filter(isSafeDiffFile);
+  const excludedFiles = statusFiles
+    .map((file) => {
+      const reason = getExcludedFileReason(file);
+      return reason ? { path: file, reason } : undefined;
+    })
+    .filter((file): file is ExcludedDiffFile => file !== undefined)
+    .sort((a, b) => a.path.localeCompare(b.path));
   const warnings: string[] = [];
 
   if (safeFiles.length < statusFiles.length) {
@@ -97,9 +126,26 @@ export async function collectDiffContext(
     diff: truncated.diff,
     diffSource,
     files: safeFiles,
+    excludedFiles,
     stats,
     truncated: truncated.truncated,
     warnings
+  };
+}
+
+export function filterDiffContextToFiles(
+  context: DiffContext,
+  selectedFiles: string[]
+): DiffContext {
+  const selectedSet = new Set(selectedFiles);
+  const files = context.files.filter((file) => selectedSet.has(file));
+  const diff = filterDiffBySafeFiles(context.diff, files);
+
+  return {
+    ...context,
+    diff,
+    files,
+    stats: calculateChangeStats(diff)
   };
 }
 

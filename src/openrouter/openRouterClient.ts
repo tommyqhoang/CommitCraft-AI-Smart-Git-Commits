@@ -85,9 +85,11 @@ export class OpenRouterClient {
     });
 
     if (!response.ok) {
-      const message = formatHttpError(response.status, response.statusText, response.text
-        ? await response.text()
-        : undefined);
+      const message = formatHttpError(
+        response.status,
+        response.statusText,
+        response.text ? await response.text() : undefined
+      );
       throw new OpenRouterHttpError(response.status, message);
     }
 
