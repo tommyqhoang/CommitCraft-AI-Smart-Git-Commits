@@ -56,46 +56,18 @@ Store OpenRouter API tokens only in VS Code `SecretStorage`. Never log tokens or
 <claude-mem-context>
 # Memory Context
 
-# [ai-commit] recent context, 2026-05-13 7:38am CDT
+# [ai-commit] recent context, 2026-05-13 7:54am CDT
 
 Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision 🚨security_alert 🔐security_note
 Format: ID TIME TYPE TITLE
 Fetch details: get_observations([IDs]) | Search: mem-search skill
 
-Stats: 50 obs (9,040t read) | 758,321t work | 99% savings
+Stats: 50 obs (9,787t read) | 575,152t work | 98% savings
 
 ### May 12, 2026
-
 S85 Publisher ID mismatch resolution for VS Code Marketplace extension publication (May 12 at 11:22 PM)
-1783 11:28p 🔵 Read package.json Settings
-1784 " ✅ Added Comment to showCommitAndPush Setting
-1785 " 🔵 Verified commitReviewedMessage Return Type
-1786 11:29p 🔴 Configuration Validation Result
-1787 " 🔴 Code Fix Summary
-1790 11:37p 🔵 MCP plugin context-mode batch execute tool located
-1791 " 🔴 VS Code extension icon file missing from assets directory
-1793 " 🔵 Icon files exist and are properly configured
-1794 11:38p 🔴 Missing icon file created for VS Code extension
-1795 " 🔵 VS Code extension commit message generation workflow
-1796 " 🔵 .vscodeignore does not exclude assets directory
-1797 11:39p 🔴 Conditional display of Commit & Push button added
 S86 Fix missing icon and conditional button rendering in VS Code extension (May 12 at 11:39 PM)
-
 ### May 13, 2026
-
-1798 6:51a 🔵 Project structure discovered for ai-commit VS Code extension
-1799 " 🔵 VS Code extension activation and command registration
-1800 " 🔵 Manual QA checklist for CommitCraft extension
-1801 6:52a 🔵 Brainstorming skill documentation reviewed
-1802 6:53a 🔵 Writing-plans skill documentation reviewed
-1803 " 🔵 Extension test suite verifies command registration
-1804 6:54a 🔵 VS Code extension test failure
-1805 " 🔵 setOpenRouterToken.ts modified to return boolean
-1806 6:55a 🔵 README.md updated with new assistant workflow and status bar entry
-1807 6:56a 🔵 package.json reveals extension activation and command IDs
-1809 " 🔵 VS Code extension test now passes
-1810 " 🔵 VSIX package created successfully
-1811 6:57a 🔵 CommitCraft command IDs and references validated
 1812 6:59a 🔵 Brainstorming skill documentation loaded
 1813 7:00a 🔴 OpenRouterClient implementation details
 1815 7:02a 🔵 New test file created for commitReviewPanel
@@ -121,6 +93,31 @@ S86 Fix missing icon and conditional button rendering in VS Code extension (May 
 1865 7:32a 🔄 Commit Assistant UI Overhaul
 1866 7:33a 🔄 Code Formatting Applied
 1867 " 🔴 VS Code Extension Tests Executed
+1869 7:38a 🟣 Commit view enhanced to show scrollable descriptions
+1870 " 🟣 Test added for separate summary and description fields in commit assistant
+1871 7:39a 🟣 Commit assistant UI split into separate summary and description fields
+1872 " ✅ Code formatted with Prettier
+1873 " 🔵 Formatting issues detected in AGENTS.md
+1874 7:42a 🔵 Systematic Debugging Methodology Documented
+1875 " 🟣 Tests added for committed state and undo commit functionality
+1876 " 🟣 GitService test added for undo commit functionality
+1877 7:44a 🔵 Mismatch between test expectations and current implementation
+1878 " 🔵 Committed state UI implementation with commit hash and undo functionality
+1879 7:45a 🟣 GitService implementation for commit state management
+1880 " 🔵 Test suite for commit review panel and GitService passes
+1881 " 🟣 Code formatting and linting applied to key files
+1885 7:46a 🔵 References to commit review panel and undo commit identified in codebase
+1886 " 🔵 CommitAssistantHtml source reveals UI rendering logic and undoCommit integration
+1888 7:48a 🔵 GitService implementation details
+1889 " 🔴 CommitReviewPanel test file analysis
+1890 7:49a 🔴 commitAssistantHtml.ts updates
+1891 7:50a 🔴 commitAssistantHtml.ts updates
+1892 " 🔴 generateCommitMessage.ts enhancements
+1893 7:51a 🔴 commitReviewPanel.test.ts updates
+1894 " 🔴 commitAssistantHtml.ts updates: pending push panel and button
+1895 7:52a 🔴 generateCommitMessage.ts patch applied
+1897 " 🔴 Test suite validation
+1898 7:53a 🔴 VS Code extension test suite passed
 
-Access 758k tokens of past work via get_observations([IDs]) or mem-search skill.
+Access 575k tokens of past work via get_observations([IDs]) or mem-search skill.
 </claude-mem-context>

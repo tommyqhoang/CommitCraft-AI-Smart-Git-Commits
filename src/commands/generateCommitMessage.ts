@@ -15,7 +15,8 @@ import {
 import { GitService } from "../git/gitService";
 import { buildCommitPrompt } from "../openrouter/commitPrompt";
 import { OpenRouterClient } from "../openrouter/openRouterClient";
-import { parseCommitResponse } from "../openrouter/responseParser";
+import { parseCommitResponse, type GeneratedCommitMessage } from "../openrouter/responseParser";
+import type { CommitReviewData } from "../ui/commitReviewPanel";
 import { showCommitReviewPanel } from "../ui/commitReviewPanel";
 import { confirmAction, showInfo, showPlainError, showRetryableError } from "../ui/notifications";
 
@@ -49,19 +50,27 @@ export async function generateCommitMessage(
       },
       async () => {
         try {
-          if (!(await gitService.hasChanges(workspacePath))) {
+          const [hasChanges, initialUnpushedCommitCount] = await Promise.all([
+            gitService.hasChanges(workspacePath),
+            gitService.getUnpushedCommitCount(workspacePath)
+          ]);
+          if (!hasChanges && initialUnpushedCommitCount === 0) {
             await showInfo("No Git changes found.");
             return;
           }
 
-          const diffContext = await collectDiffContext(workspacePath, {
-            includeUntrackedFiles: settings.includeUntrackedFiles,
-            maxDiffCharacters: settings.maxDiffCharacters
-          });
+          let currentDiffContext = hasChanges
+            ? await collectDiffContext(workspacePath, {
+                includeUntrackedFiles: settings.includeUntrackedFiles,
+                maxDiffCharacters: settings.maxDiffCharacters
+              })
+            : createEmptyDiffContext();
 
           if (
-            (diffContext.diff.trim().length === 0 || diffContext.files.length === 0) &&
-            diffContext.excludedFiles.length === 0
+            initialUnpushedCommitCount === 0 &&
+            (currentDiffContext.diff.trim().length === 0 ||
+              currentDiffContext.files.length === 0) &&
+            currentDiffContext.excludedFiles.length === 0
           ) {
             await showPlainError("No safe text changes are available to summarize.");
             return;
@@ -72,17 +81,32 @@ export async function generateCommitMessage(
             gitService.getPushReadiness(workspacePath)
           ]);
           let generatedDiffContext: DiffContext | undefined;
+          let generatedMessage: GeneratedCommitMessage | undefined;
+          let generatedModelUsed: string | undefined;
+          let generatedRecovered = false;
+          let generatedRecoveryReason: string | undefined;
 
           const panel = showCommitReviewPanel(
             {
-              diffContext,
+              diffContext: currentDiffContext,
               canPush: pushReadiness.canPush,
               pushDisabledReason: pushReadiness.canPush ? undefined : pushReadiness.reason,
-              recovered: false
+              recovered: false,
+              pendingPushCount: initialUnpushedCommitCount,
+              canReviewChanges: hasChanges && currentDiffContext.files.length > 0,
+              commitState:
+                initialUnpushedCommitCount > 0 && currentDiffContext.files.length === 0
+                  ? {
+                      status: "pendingPush",
+                      commitHash: await gitService
+                        .getHeadShortHash(workspacePath)
+                        .catch(() => undefined)
+                    }
+                  : undefined
             },
             {
               generate: async (files) => {
-                const selectedDiffContext = filterDiffContextToFiles(diffContext, files);
+                const selectedDiffContext = filterDiffContextToFiles(currentDiffContext, files);
                 if (
                   selectedDiffContext.diff.trim().length === 0 ||
                   selectedDiffContext.files.length === 0
@@ -126,6 +150,10 @@ export async function generateCommitMessage(
                 );
                 const parsed = parseCommitResponse(aiResponse.content);
                 generatedDiffContext = selectedDiffContext;
+                generatedMessage = parsed.message;
+                generatedModelUsed = aiResponse.modelUsed;
+                generatedRecovered = parsed.recovered;
+                generatedRecoveryReason = parsed.recoveryReason;
 
                 return {
                   message: parsed.message,
@@ -134,20 +162,55 @@ export async function generateCommitMessage(
                   recovered: parsed.recovered,
                   recoveryReason: parsed.recoveryReason,
                   canPush: pushReadiness.canPush,
-                  pushDisabledReason: pushReadiness.canPush ? undefined : pushReadiness.reason
+                  pushDisabledReason: pushReadiness.canPush ? undefined : pushReadiness.reason,
+                  pendingPushCount: await gitService.getUnpushedCommitCount(workspacePath)
                 };
               },
               commit: async (message) => {
-                await commitReviewedMessage(
+                const committed = await commitReviewedMessage(
                   gitService,
                   workspacePath,
                   message,
                   getGeneratedFiles(generatedDiffContext),
                   hasStagedChanges
                 );
+                if (!committed) {
+                  return undefined;
+                }
+
+                return buildPostCommitData(
+                  gitService,
+                  workspacePath,
+                  "committed",
+                  getCurrentReviewData({
+                    currentDiffContext,
+                    generatedDiffContext,
+                    generatedMessage,
+                    generatedModelUsed,
+                    generatedRecovered,
+                    generatedRecoveryReason
+                  })
+                );
               },
               push: async () => {
-                await pushWithConfirmation(gitService, workspacePath);
+                const pushed = await pushWithConfirmation(gitService, workspacePath);
+                if (!pushed) {
+                  return undefined;
+                }
+
+                return buildPostCommitData(
+                  gitService,
+                  workspacePath,
+                  "pushed",
+                  getCurrentReviewData({
+                    currentDiffContext,
+                    generatedDiffContext,
+                    generatedMessage,
+                    generatedModelUsed,
+                    generatedRecovered,
+                    generatedRecoveryReason
+                  })
+                );
               },
               commitAndPush: async (message) => {
                 const committed = await commitReviewedMessage(
@@ -157,9 +220,90 @@ export async function generateCommitMessage(
                   getGeneratedFiles(generatedDiffContext),
                   hasStagedChanges
                 );
-                if (committed) {
-                  await pushWithConfirmation(gitService, workspacePath);
+                if (!committed) {
+                  return undefined;
                 }
+
+                const generatedData = getCurrentReviewData({
+                  currentDiffContext,
+                  generatedDiffContext,
+                  generatedMessage,
+                  generatedModelUsed,
+                  generatedRecovered,
+                  generatedRecoveryReason
+                });
+                const pushed = await pushWithConfirmation(gitService, workspacePath);
+                return buildPostCommitData(
+                  gitService,
+                  workspacePath,
+                  pushed ? "pushed" : "committed",
+                  generatedData
+                );
+              },
+              undoCommit: async () => {
+                const undone = await undoCommitWithConfirmation(gitService, workspacePath);
+                if (!undone) {
+                  return undefined;
+                }
+
+                currentDiffContext = await collectDiffContext(workspacePath, {
+                  includeUntrackedFiles: settings.includeUntrackedFiles,
+                  maxDiffCharacters: settings.maxDiffCharacters
+                });
+                generatedDiffContext = undefined;
+                generatedMessage = undefined;
+                generatedModelUsed = undefined;
+                generatedRecovered = false;
+                generatedRecoveryReason = undefined;
+
+                const [nextPushReadiness, pendingPushCount] = await Promise.all([
+                  gitService.getPushReadiness(workspacePath),
+                  gitService.getUnpushedCommitCount(workspacePath)
+                ]);
+
+                return {
+                  diffContext: currentDiffContext,
+                  canPush: nextPushReadiness.canPush,
+                  pushDisabledReason: nextPushReadiness.canPush
+                    ? undefined
+                    : nextPushReadiness.reason,
+                  pendingPushCount,
+                  canReviewChanges: currentDiffContext.files.length > 0,
+                  recovered: false
+                };
+              },
+              reviewChanges: async () => {
+                currentDiffContext = await collectDiffContext(workspacePath, {
+                  includeUntrackedFiles: settings.includeUntrackedFiles,
+                  maxDiffCharacters: settings.maxDiffCharacters
+                });
+                generatedDiffContext = undefined;
+                generatedMessage = undefined;
+                generatedModelUsed = undefined;
+                generatedRecovered = false;
+                generatedRecoveryReason = undefined;
+
+                if (
+                  currentDiffContext.diff.trim().length === 0 ||
+                  currentDiffContext.files.length === 0
+                ) {
+                  throw new Error("No remaining safe text changes are available to summarize.");
+                }
+
+                const [nextPushReadiness, pendingPushCount] = await Promise.all([
+                  gitService.getPushReadiness(workspacePath),
+                  gitService.getUnpushedCommitCount(workspacePath)
+                ]);
+
+                return {
+                  diffContext: currentDiffContext,
+                  canPush: nextPushReadiness.canPush,
+                  pushDisabledReason: nextPushReadiness.canPush
+                    ? undefined
+                    : nextPushReadiness.reason,
+                  pendingPushCount,
+                  recovered: false
+                };
               }
             }
           );
@@ -209,6 +353,53 @@ function getGeneratedFiles(generatedDiffContext: DiffContext | undefined): strin
   return generatedDiffContext.files;
 }
 
+interface GeneratedDataState {
+  currentDiffContext: DiffContext;
+  generatedDiffContext: DiffContext | undefined;
+  generatedMessage: GeneratedCommitMessage | undefined;
+  generatedModelUsed: string | undefined;
+  generatedRecovered: boolean;
+  generatedRecoveryReason: string | undefined;
+}
+
+function getCurrentReviewData(
+  state: GeneratedDataState
+): Omit<CommitReviewData, "canPush" | "pushDisabledReason"> {
+  return {
+    message: state.generatedMessage,
+    modelUsed: state.generatedModelUsed,
+    diffContext: state.generatedDiffContext ?? state.currentDiffContext,
+    recovered: state.generatedRecovered,
+    recoveryReason: state.generatedRecoveryReason
+  };
+}
+
+async function buildPostCommitData(
+  gitService: GitService,
+  workspacePath: string,
+  status: "committed" | "pushed",
+  generatedData: Omit<CommitReviewData, "canPush" | "pushDisabledReason">
+): Promise<CommitReviewData> {
+  const [pushReadiness, commitHash, pendingPushCount, canReviewChanges] = await Promise.all([
+    gitService.getPushReadiness(workspacePath),
+    gitService.getHeadShortHash(workspacePath).catch(() => undefined),
+    gitService.getUnpushedCommitCount(workspacePath),
+    gitService.hasChanges(workspacePath)
+  ]);
+
+  return {
+    ...generatedData,
+    canPush: pushReadiness.canPush,
+    pushDisabledReason: pushReadiness.canPush ? undefined : pushReadiness.reason,
+    pendingPushCount,
+    canReviewChanges,
+    commitState: {
+      status,
+      commitHash
+    }
+  };
+}
+
 async function commitReviewedMessage(
   gitService: GitService,
   workspacePath: string,
@@ -241,11 +432,14 @@ async function commitReviewedMessage(
   return true;
 }
 
-async function pushWithConfirmation(gitService: GitService, workspacePath: string): Promise<void> {
+async function pushWithConfirmation(
+  gitService: GitService,
+  workspacePath: string
+): Promise<boolean> {
   const readiness = await gitService.getPushReadiness(workspacePath);
   if (!readiness.canPush) {
     await showPlainError(readiness.reason ?? "This branch cannot be pushed.");
-    return;
+    return false;
   }
 
   if (
@@ -254,11 +448,45 @@ async function pushWithConfirmation(gitService: GitService, workspacePath: strin
       "Push"
     ))
   ) {
-    return;
+    return false;
   }
 
   await gitService.push(workspacePath);
   await showInfo("Branch pushed.");
+  return true;
+}
+
+async function undoCommitWithConfirmation(
+  gitService: GitService,
+  workspacePath: string
+): Promise<boolean> {
+  if (
+    !(await confirmAction("Undo the last local commit and keep its changes staged?", "Undo Commit"))
+  ) {
+    return false;
+  }
+
+  await gitService.undoLastCommit(workspacePath);
+  await showInfo("Commit undone. Changes are staged.");
+  return true;
+}
+
+function createEmptyDiffContext(): DiffContext {
+  return {
+    diff: "",
+    fullDiff: "",
+    diffSource: "unstaged",
+    files: [],
+    excludedFiles: [],
+    stats: {
+      filesChanged: 0,
+      linesAdded: 0,
+      linesRemoved: 0
+    },
+    truncated: false,
+    warnings: [],
+    maxDiffCharacters: 0
+  };
 }
 
 function formatError(error: unknown): string {

@@ -90,6 +90,41 @@ export class GitService {
     ]);
   }
 
+  async getHeadShortHash(workspacePath: string): Promise<string> {
+    return (await this.git(workspacePath, ["rev-parse", "--short", "HEAD"])).trim();
+  }
+
+  async getUnpushedCommitCount(workspacePath: string): Promise<number> {
+    const upstream = await this.git(workspacePath, [
+      "rev-parse",
+      "--abbrev-ref",
+      "--symbolic-full-name",
+      "@{u}"
+    ])
+      .then((value) => value.trim())
+      .catch(() => "");
+
+    if (upstream.length > 0) {
+      return this.countRevisions(workspacePath, `${upstream}..HEAD`);
+    }
+
+    const readiness = await this.getPushReadiness(workspacePath);
+    if (!readiness.canPush) {
+      return 0;
+    }
+
+    return this.countRevisions(workspacePath, "HEAD");
+  }
+
+  async undoLastCommit(workspacePath: string): Promise<void> {
+    await this.git(workspacePath, ["reset", "--soft", "HEAD~1"]);
+  }
+
+  private async countRevisions(workspacePath: string, revisionRange: string): Promise<number> {
+    const output = await this.git(workspacePath, ["rev-list", "--count", revisionRange]);
+    return Number.parseInt(output.trim(), 10) || 0;
+  }
+
   private async git(workspacePath: string, args: string[]): Promise<string> {
     const { stdout } = await execFileAsync("git", args, {
       cwd: workspacePath,

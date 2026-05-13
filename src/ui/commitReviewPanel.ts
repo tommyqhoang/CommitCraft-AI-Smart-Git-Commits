@@ -8,9 +8,11 @@ export type CommitReviewData = CommitAssistantData;
 
 export interface CommitReviewHandlers {
   generate: (files: string[]) => Promise<CommitReviewData>;
-  commit: (message: string) => Promise<void>;
-  push: () => Promise<void>;
-  commitAndPush: (message: string) => Promise<void>;
+  commit: (message: string) => Promise<CommitReviewData | undefined>;
+  push: () => Promise<CommitReviewData | undefined>;
+  commitAndPush: (message: string) => Promise<CommitReviewData | undefined>;
+  undoCommit: () => Promise<CommitReviewData | undefined>;
+  reviewChanges: () => Promise<CommitReviewData | undefined>;
 }
 
 export function showCommitReviewPanel(
@@ -58,15 +60,28 @@ async function handleMessage(
       const updatedData = await handlers.generate(message.files ?? []);
       setPanelHtml(panel, updatedData);
     } else if (message.command === "commit") {
-      await handlers.commit(message.message ?? "");
+      updatePanelIfChanged(panel, await handlers.commit(message.message ?? ""));
     } else if (message.command === "push") {
-      await handlers.push();
+      updatePanelIfChanged(panel, await handlers.push());
     } else if (message.command === "commitAndPush") {
-      await handlers.commitAndPush(message.message ?? "");
+      updatePanelIfChanged(panel, await handlers.commitAndPush(message.message ?? ""));
+    } else if (message.command === "undoCommit") {
+      updatePanelIfChanged(panel, await handlers.undoCommit());
+    } else if (message.command === "reviewChanges") {
+      updatePanelIfChanged(panel, await handlers.reviewChanges());
     }
   } catch (err) {
     const errorText = err instanceof Error ? err.message : String(err);
     void panel.webview.postMessage({ command: "error", text: errorText });
+  }
+}
+
+function updatePanelIfChanged(
+  panel: vscode.WebviewPanel,
+  data: CommitReviewData | undefined
+): void {
+  if (data) {
+    setPanelHtml(panel, data);
   }
 }
 

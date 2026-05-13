@@ -1,6 +1,20 @@
 import type { DiffContext } from "../git/diffCollector";
 import type { GeneratedCommitMessage } from "../openrouter/responseParser";
 
+export type CommitState =
+  | {
+      status: "committed";
+      commitHash?: string;
+    }
+  | {
+      status: "pendingPush";
+      commitHash?: string;
+    }
+  | {
+      status: "pushed";
+      commitHash?: string;
+    };
+
 export interface CommitAssistantData {
   message?: GeneratedCommitMessage;
   modelUsed?: string;
@@ -9,6 +23,9 @@ export interface CommitAssistantData {
   recoveryReason?: string;
   canPush: boolean;
   pushDisabledReason?: string;
+  commitState?: CommitState;
+  pendingPushCount?: number;
+  canReviewChanges?: boolean;
 }
 
 export interface CommitAssistantRenderOptions {
@@ -84,6 +101,9 @@ export function renderCommitAssistantHtml(
     .actions { display: flex; flex-wrap: wrap; gap: 8px; }
     .action-bar { align-items: center; border-top: 1px solid var(--commitcraft-border); padding-top: 12px; }
     .primary-action { font-weight: 600; }
+    .success-panel { display: grid; gap: 10px; border-color: var(--commitcraft-added); }
+    .success-title { color: var(--commitcraft-added); font-size: 18px; font-weight: 700; margin: 0; }
+    .commit-hash { display: inline-block; width: fit-content; font-family: var(--vscode-editor-font-family); color: var(--vscode-textCodeBlock-foreground); background: var(--vscode-textCodeBlock-background); border: 1px solid var(--commitcraft-border); border-radius: 4px; padding: 4px 6px; }
     .warnings { border-left: 3px solid var(--vscode-editorWarning-foreground); padding-left: 10px; color: var(--vscode-editorWarning-foreground); }
     .files { max-height: 210px; overflow: auto; }
     .muted { color: var(--vscode-descriptionForeground); margin: 0; }
@@ -94,7 +114,7 @@ export function renderCommitAssistantHtml(
 </head>
 <body>
   <main>
-    ${data.message ? renderGeneratedView(data, pushTitle) : renderPreviewView(data)}
+    ${data.commitState ? renderPostCommitView(data, pushTitle) : data.message ? renderGeneratedView(data, pushTitle) : renderPreviewView(data)}
     ${warningHtml}
     <p id="error" role="alert" style="color: var(--vscode-errorForeground); display: none;"></p>
   </main>
@@ -137,6 +157,14 @@ export function renderCommitAssistantHtml(
       errorEl.style.display = "none";
       vscode.postMessage({ command: "commitAndPush", message: commitMessageValue() });
     });
+    document.getElementById("undoCommit")?.addEventListener("click", () => {
+      errorEl.style.display = "none";
+      vscode.postMessage({ command: "undoCommit" });
+    });
+    document.getElementById("reviewChanges")?.addEventListener("click", () => {
+      errorEl.style.display = "none";
+      vscode.postMessage({ command: "reviewChanges" });
+    });
   </script>
 </body>
 </html>`;
@@ -157,6 +185,7 @@ function renderPreviewView(data: CommitAssistantData): string {
   return `
     <section class="assistant-shell">
     ${renderHeader("Review Changes", "Select the safe files CommitCraft should summarize before anything is sent to OpenRouter.")}
+    ${renderPendingPushPanel(data)}
     ${renderStats(data)}
     <section class="panel files">
       <strong class="section-title">Files to summarize</strong>
@@ -169,7 +198,7 @@ function renderPreviewView(data: CommitAssistantData): string {
     }
     ${
       hasSummarizableFiles
-        ? `<section class="actions action-bar"><button id="generate" class="primary-action">Generate Message</button></section>`
+        ? `<section class="actions action-bar">${data.pendingPushCount ? `<button id="push" class="secondary">Push Pending Commits</button>` : ""}<button id="generate" class="primary-action">Generate Message</button></section>`
         : ""
     }
     </section>`;
@@ -186,6 +215,7 @@ function renderGeneratedView(data: CommitAssistantData, pushTitle: string): stri
   return `
     <section class="assistant-shell">
     ${renderHeader("CommitCraft Review", "Review the generated message, make edits, then choose the Git action to run.")}
+    ${renderPendingPushPanel(data)}
     <section class="panel message-fields">
       <div>
         <label class="field-label" for="summary">Commit message</label>
@@ -208,6 +238,65 @@ function renderGeneratedView(data: CommitAssistantData, pushTitle: string): stri
     </section>
     ${data.canPush ? "" : `<p class="muted">${escapeHtml(pushTitle)}</p>`}
     </section>`;
+}
+
+function renderPendingPushPanel(data: CommitAssistantData): string {
+  const pendingPushLabel = formatPendingPushCount(data.pendingPushCount);
+  if (!pendingPushLabel || data.commitState) {
+    return "";
+  }
+
+  return `<section class="panel"><strong class="section-title">Pending push</strong><p class="muted">${escapeHtml(pendingPushLabel)} ready to push.</p></section>`;
+}
+
+function renderPostCommitView(data: CommitAssistantData, pushTitle: string): string {
+  const state = data.commitState;
+  if (!state) {
+    return "";
+  }
+
+  const isPushed = state.status === "pushed";
+  const isPendingPush = state.status === "pendingPush";
+  const title = isPushed
+    ? "Push successful"
+    : isPendingPush
+      ? "Ready to push"
+      : "Commit successful";
+  const pendingPushLabel = formatPendingPushCount(data.pendingPushCount);
+  const subtitle = isPushed
+    ? "Your commit was pushed to the configured remote."
+    : isPendingPush
+      ? "This branch already has local commits that have not been pushed."
+      : "Your local commit was created. Push it now, keep committing, or undo the local commit before pushing.";
+
+  return `
+    <section class="assistant-shell">
+    ${renderHeader(title, subtitle)}
+    <section class="panel success-panel">
+      <p class="success-title">${escapeHtml(title)}</p>
+      ${state.commitHash ? `<span class="commit-hash">${escapeHtml(state.commitHash)}</span>` : ""}
+      ${pendingPushLabel ? `<p class="muted">${escapeHtml(pendingPushLabel)}</p>` : ""}
+      ${data.message ? `<p class="muted">${escapeHtml(data.message.summary)}</p>` : ""}
+    </section>
+    <section class="actions action-bar">
+      ${
+        isPushed
+          ? ""
+          : `<button id="push" class="primary-action" title="${escapeHtml(pushTitle)}" ${data.canPush ? "" : "disabled"}>Push</button>
+      <button id="undoCommit" class="secondary">${isPendingPush ? "Undo Last Commit" : "Undo Commit"}</button>`
+      }
+      ${data.canReviewChanges ? `<button id="reviewChanges" class="secondary">Review Remaining Changes</button>` : ""}
+    </section>
+    ${!isPushed && !data.canPush ? `<p class="muted">${escapeHtml(pushTitle)}</p>` : ""}
+    </section>`;
+}
+
+function formatPendingPushCount(count: number | undefined): string | undefined {
+  if (!count || count < 1) {
+    return undefined;
+  }
+
+  return count === 1 ? "1 unpushed commit" : `${count} unpushed commits`;
 }
 
 function renderStats(data: CommitAssistantData): string {

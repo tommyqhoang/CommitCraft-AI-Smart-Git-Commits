@@ -116,6 +116,140 @@ describe("renderCommitAssistantHtml", () => {
     expect(html).toContain("message: commitMessageValue()");
   });
 
+  it("shows a committed state with push and undo actions after commit succeeds", () => {
+    const html = renderCommitAssistantHtml(
+      {
+        modelUsed: "openrouter/auto",
+        diffContext: baseDiffContext,
+        recovered: false,
+        canPush: true,
+        commitState: {
+          status: "committed",
+          commitHash: "abc1234"
+        },
+        message: {
+          summary: "feat: add post commit state",
+          description: "Shows push and undo actions after commit.",
+          riskLevel: "low",
+          notableFiles: ["src/a.ts"]
+        }
+      },
+      { cspSource: "vscode-resource:", nonce: "test-nonce" }
+    );
+
+    expect(html).toContain("Commit successful");
+    expect(html).toContain("abc1234");
+    expect(html).toContain('id="push"');
+    expect(html).toContain('id="undoCommit"');
+    expect(html).toContain("Undo Commit");
+    expect(html).not.toContain('id="commit"');
+  });
+
+  it("posts undo commit actions from the committed state", () => {
+    const html = renderCommitAssistantHtml(
+      {
+        modelUsed: "openrouter/auto",
+        diffContext: baseDiffContext,
+        recovered: false,
+        canPush: true,
+        commitState: {
+          status: "committed",
+          commitHash: "abc1234"
+        },
+        message: {
+          summary: "feat: add post commit state",
+          description: "Shows push and undo actions after commit.",
+          riskLevel: "low",
+          notableFiles: ["src/a.ts"]
+        }
+      },
+      { cspSource: "vscode-resource:", nonce: "test-nonce" }
+    );
+
+    expect(html).toContain('id="undoCommit"');
+    expect(html).toContain('command: "undoCommit"');
+  });
+
+  it("shows a pending push state when commits exist without current file changes", () => {
+    const html = renderCommitAssistantHtml(
+      {
+        diffContext: {
+          ...baseDiffContext,
+          diff: "",
+          fullDiff: "",
+          files: [],
+          excludedFiles: [],
+          stats: {
+            filesChanged: 0,
+            linesAdded: 0,
+            linesRemoved: 0
+          }
+        },
+        recovered: false,
+        canPush: true,
+        pendingPushCount: 2,
+        commitState: {
+          status: "pendingPush",
+          commitHash: "def5678"
+        }
+      },
+      { cspSource: "vscode-resource:", nonce: "test-nonce" }
+    );
+
+    expect(html).toContain("Ready to push");
+    expect(html).toContain("2 unpushed commits");
+    expect(html).toContain('id="push"');
+    expect(html).toContain("Undo Last Commit");
+    expect(html).not.toContain('id="generate"');
+  });
+
+  it("lets users push pending commits while reviewing additional file changes", () => {
+    const html = renderCommitAssistantHtml(
+      {
+        modelUsed: undefined,
+        diffContext: baseDiffContext,
+        recovered: false,
+        canPush: true,
+        pendingPushCount: 1,
+        message: undefined
+      },
+      { cspSource: "vscode-resource:", nonce: "test-nonce" }
+    );
+
+    expect(html).toContain("1 unpushed commit");
+    expect(html).toContain('id="push"');
+    expect(html).toContain('id="generate"');
+    expect(html).toContain("Generate Message");
+  });
+
+  it("offers to review remaining changes after a local commit leaves more worktree changes", () => {
+    const html = renderCommitAssistantHtml(
+      {
+        modelUsed: "openrouter/auto",
+        diffContext: baseDiffContext,
+        recovered: false,
+        canPush: true,
+        canReviewChanges: true,
+        pendingPushCount: 1,
+        commitState: {
+          status: "committed",
+          commitHash: "abc1234"
+        },
+        message: {
+          summary: "feat: commit selected files",
+          description: "Leaves other files available for another commit.",
+          riskLevel: "low",
+          notableFiles: ["src/a.ts"]
+        }
+      },
+      { cspSource: "vscode-resource:", nonce: "test-nonce" }
+    );
+
+    expect(html).toContain("Review Remaining Changes");
+    expect(html).toContain('id="reviewChanges"');
+    expect(html).toContain('command: "reviewChanges"');
+  });
+
   it("shows Commit and Push whenever push is available", () => {
     const html = renderCommitAssistantHtml(
       {
