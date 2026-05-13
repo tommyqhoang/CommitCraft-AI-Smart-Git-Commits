@@ -147,7 +147,7 @@ function renderHtml(webview: vscode.Webview, data: CommitReviewData): string {
     <section class="actions">
       <button id="commit">Commit</button>
       <button id="push" class="secondary" title="${escapeHtml(pushTitle)}" ${data.canPush ? "" : "disabled"}>Push</button>
-      <button id="commitAndPush" title="${escapeHtml(pushTitle)}" ${data.canPush ? "" : "disabled"}>Commit and Push</button>
+      ${data.showCommitAndPush ? `<button id="commitAndPush" title="${escapeHtml(pushTitle)}" ${data.canPush ? "" : "disabled"}>Commit and Push</button>` : ""}
     </section>
     ${data.canPush ? "" : `<p class="muted">${escapeHtml(pushTitle)}</p>`}
     <p id="error" role="alert" style="color: var(--vscode-errorForeground); display: none;"></p>
@@ -174,10 +174,10 @@ function renderHtml(webview: vscode.Webview, data: CommitReviewData): string {
       errorEl.style.display = "none";
       vscode.postMessage({ command: "push", message: message.value });
     });
-    document.getElementById("commitAndPush").addEventListener("click", () => {
+    ${data.showCommitAndPush ? `document.getElementById("commitAndPush").addEventListener("click", () => {
       errorEl.style.display = "none";
       vscode.postMessage({ command: "commitAndPush", message: message.value });
-    });
+    });` : ""}
   </script>
 </body>
 </html>`;
