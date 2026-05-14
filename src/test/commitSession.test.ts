@@ -249,11 +249,18 @@ describe("CommitSession", () => {
     });
 
     it("returns committed state and appends to activity history on success", async () => {
-      const session = makeSession();
+      const git = makeGitService();
+      const session = makeSession({ gitService: git });
       await session.generate(["src/a.ts"]);
       const result = await session.commit("feat: my change");
       expect(result?.commitState?.status).toBe("committed");
       expect(result?.commitState?.commitHash).toBe("abc1234");
+      expect(git.commit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          workspacePath: "/test/workspace",
+          message: "feat: my change"
+        })
+      );
       expect(session.activityHistory).toHaveLength(1);
       expect(session.activityHistory[0].type).toBe("commit");
     });
@@ -334,6 +341,7 @@ describe("CommitSession", () => {
       const result = await session.commitAndPush("feat: my change");
       expect(result?.commitState?.status).toBe("committed");
       expect(notifications.showPlainError).toHaveBeenCalled();
+      expect(git.push).toHaveBeenCalled();
       expect(session.activityHistory.some((h) => h.type === "commit")).toBe(true);
       expect(session.activityHistory.some((h) => h.type === "push")).toBe(false);
     });
@@ -361,10 +369,12 @@ describe("CommitSession", () => {
     it("refreshes diff context, resets generated state, and records undo activity", async () => {
       const freshCtx = makeDiffContext({ files: ["src/b.ts"] });
       vi.mocked(diffCollector.collectDiffContext).mockResolvedValue(freshCtx);
-      const session = makeSession();
+      const git = makeGitService();
+      const session = makeSession({ gitService: git });
       // Generate first so there is generated state to reset
       await session.generate(["src/a.ts"]);
       const result = await session.undoCommit();
+      expect(git.undoLastCommit).toHaveBeenCalledWith("/test/workspace");
       expect(result?.diffContext.files).toContain("src/b.ts");
       expect(session.activityHistory.some((h) => h.type === "undo")).toBe(true);
     });
