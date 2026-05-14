@@ -41,7 +41,11 @@ export class CommitSession {
   private generatedModelUsed: string | undefined = undefined;
   private generatedRecovered = false;
   private generatedRecoveryReason: string | undefined = undefined;
-  readonly activityHistory: ActivityHistoryItem[] = [];
+  private readonly _activityHistory: ActivityHistoryItem[] = [];
+
+  get activityHistory(): readonly ActivityHistoryItem[] {
+    return this._activityHistory;
+  }
 
   constructor(
     private readonly deps: CommitSessionDeps,
@@ -76,10 +80,10 @@ export class CommitSession {
       return undefined;
     }
     const data = await this.buildPostCommitData("committed", this.getCurrentReviewData());
-    this.activityHistory.push(
+    this._activityHistory.push(
       createActivityItem("commit", "Committed", message, data.commitState?.commitHash)
     );
-    return { ...data, activityHistory: this.activityHistory };
+    return { ...data, activityHistory: [...this._activityHistory] };
   }
 
   async push(): Promise<CommitReviewData | undefined> {
@@ -88,7 +92,7 @@ export class CommitSession {
       return undefined;
     }
     const data = await this.buildPostCommitData("pushed", this.getCurrentReviewData());
-    this.activityHistory.push(
+    this._activityHistory.push(
       createActivityItem(
         "push",
         "Pushed",
@@ -96,7 +100,7 @@ export class CommitSession {
         data.commitState?.commitHash
       )
     );
-    return { ...data, activityHistory: this.activityHistory };
+    return { ...data, activityHistory: [...this._activityHistory] };
   }
 
   async commitAndPush(message: string): Promise<CommitReviewData | undefined> {
@@ -128,11 +132,11 @@ export class CommitSession {
       pushed.pushed ? "pushed" : "committed",
       generatedData
     );
-    this.activityHistory.push(
+    this._activityHistory.push(
       createActivityItem("commit", "Committed", message, data.commitState?.commitHash)
     );
     if (pushed.pushed) {
-      this.activityHistory.push(
+      this._activityHistory.push(
         createActivityItem(
           "push",
           "Pushed",
@@ -141,7 +145,7 @@ export class CommitSession {
         )
       );
     }
-    return { ...data, activityHistory: this.activityHistory };
+    return { ...data, activityHistory: [...this._activityHistory] };
   }
 
   async undoCommit(): Promise<CommitReviewData | undefined> {
@@ -150,7 +154,7 @@ export class CommitSession {
       return undefined;
     }
 
-    this.activityHistory.push(createActivityItem("undo", "Undid Commit", "Changes kept staged."));
+    this._activityHistory.push(createActivityItem("undo", "Undid Commit", "Changes kept staged."));
     this.currentDiffContext = await collectDiffContext(this.deps.workspacePath, {
       includeUntrackedFiles: this.deps.settings.includeUntrackedFiles,
       maxDiffCharacters: this.deps.settings.maxDiffCharacters
@@ -172,7 +176,7 @@ export class CommitSession {
       pushDisabledReason: nextPushReadiness.canPush ? undefined : nextPushReadiness.reason,
       pendingPushCount,
       canReviewChanges: this.currentDiffContext.files.length > 0,
-      activityHistory: this.activityHistory,
+      activityHistory: [...this._activityHistory],
       recovered: false
     };
   }
@@ -206,7 +210,7 @@ export class CommitSession {
       pushDisabledReason: nextPushReadiness.canPush ? undefined : nextPushReadiness.reason,
       pendingPushCount,
       canReviewChanges: this.currentDiffContext.files.length > 0,
-      activityHistory: this.activityHistory,
+      activityHistory: [...this._activityHistory],
       recovered: false
     };
   }
@@ -275,7 +279,7 @@ export class CommitSession {
       canPush: freshPushReadiness.canPush,
       pushDisabledReason: freshPushReadiness.canPush ? undefined : freshPushReadiness.reason,
       pendingPushCount: freshPendingPushCount,
-      activityHistory: this.activityHistory
+      activityHistory: [...this._activityHistory]
     };
   }
 
