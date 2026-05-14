@@ -351,6 +351,18 @@ const CSS = `
     font-weight: 600;
   }
   button.push-btn:hover { background: var(--vscode-button-hoverBackground); }
+  button.copy-btn {
+    background: transparent;
+    border: 1px solid var(--cc-border);
+    color: var(--cc-muted);
+    font-size: 12px;
+    padding: 5px 10px;
+    border-radius: var(--cc-r);
+    cursor: pointer;
+    transition: color 0.1s, border-color 0.1s;
+  }
+  button.copy-btn:hover { color: var(--cc-fg); border-color: var(--vscode-focusBorder); }
+  button.copy-btn.copied { color: var(--cc-added); border-color: var(--cc-added); }
   button.generate-btn {
     width: 100%;
     padding: 9px 14px;
@@ -571,6 +583,22 @@ export function renderCommitAssistantHtml(
       errorEl.style.display = "none";
       vscode.postMessage({ command: "reviewChanges" });
     });
+    document.getElementById("regenerate")?.addEventListener("click", () => {
+      errorEl.style.display = "none";
+      vscode.postMessage({ command: "regenerate" });
+    });
+    document.getElementById("copyMessage")?.addEventListener("click", () => {
+      const text = commitMessageValue();
+      navigator.clipboard.writeText(text).then(() => {
+        const btn = document.getElementById("copyMessage");
+        if (btn) {
+          const original = btn.textContent;
+          btn.textContent = "\\u2713 Copied";
+          btn.classList.add("copied");
+          setTimeout(() => { btn.textContent = original; btn.classList.remove("copied"); }, 1500);
+        }
+      }).catch(() => {});
+    });
     document.querySelectorAll(".file-open-btn").forEach((btn) => {
       btn.addEventListener("click", (e) => {
         e.preventDefault();
@@ -707,6 +735,8 @@ function renderGeneratedView(data: CommitAssistantData, pushTitle: string): stri
       <button id="commit" class="primary">Commit</button>
       <button id="push" class="push-btn" title="${escapeHtml(pushTitle)}" ${data.canPush && data.pendingPushCount ? "" : "disabled"}>&#8593; Push</button>
       <button id="commitAndPush" class="secondary" title="${escapeHtml(pushTitle)}" ${data.canPush ? "" : "disabled"}>Commit + Push</button>
+      <button id="regenerate" class="secondary" title="Re-run AI with the same files">&#8635; Regenerate</button>
+      <button id="copyMessage" class="copy-btn" title="Copy commit message to clipboard">&#10697; Copy</button>
     </div>
     ${!data.canPush ? `<p class="muted">${escapeHtml(pushTitle)}</p>` : ""}`;
 }
@@ -756,11 +786,13 @@ function renderPostCommitView(data: CommitAssistantData, pushTitle: string): str
              <button id="push" class="push-btn" title="${escapeHtml(pushTitle)}" ${data.canPush ? "" : "disabled"}>&#8593; Push</button>
              <button id="undoCommit" class="secondary">&#8629; ${isPendingPush ? "Undo Last Commit" : "Undo Commit"}</button>
              ${data.canReviewChanges ? `<button id="reviewChanges" class="secondary">Review Remaining Changes</button>` : ""}
+             ${data.message ? `<button id="copyMessage" class="copy-btn" title="Copy commit message to clipboard">&#10697; Copy</button>` : ""}
            </div>
            ${!data.canPush ? `<p class="muted">${escapeHtml(pushTitle)}</p>` : ""}`
-        : data.canReviewChanges
-          ? `<div class="action-bar"><button id="reviewChanges" class="secondary">Review Remaining Changes</button></div>`
-          : ""
+        : `<div class="action-bar">
+             ${data.canReviewChanges ? `<button id="reviewChanges" class="secondary">Review Remaining Changes</button>` : ""}
+             ${data.message ? `<button id="copyMessage" class="copy-btn" title="Copy commit message to clipboard">&#10697; Copy</button>` : ""}
+           </div>`
     }`;
 }
 

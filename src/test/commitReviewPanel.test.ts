@@ -726,4 +726,83 @@ describe("renderCommitAssistantHtml", () => {
 
     expect(html).not.toContain('id="summary-counter"');
   });
+
+  // ── copy message button ───────────────────────────────────────────────────
+
+  it("renders a copy button in the generated (edit) view", () => {
+    const html = renderCommitAssistantHtml(
+      {
+        diffContext: baseDiffContext,
+        recovered: false,
+        canPush: true,
+        message: { summary: "fix: something", description: "desc", riskLevel: "low" }
+      },
+      { cspSource: "vscode-resource:", nonce: "test-nonce" }
+    );
+
+    expect(html).toContain('id="copyMessage"');
+    expect(html).toContain("navigator.clipboard");
+  });
+
+  it("renders a copy button in the post-commit (committed) view when message is present", () => {
+    const html = renderCommitAssistantHtml(
+      {
+        diffContext: baseDiffContext,
+        recovered: false,
+        canPush: true,
+        message: { summary: "fix: something", description: "desc", riskLevel: "low" },
+        commitState: { status: "committed", commitHash: "abc1234" }
+      },
+      { cspSource: "vscode-resource:", nonce: "test-nonce" }
+    );
+
+    expect(html).toContain('id="copyMessage"');
+  });
+
+  it("renders a copy button in the post-commit (pushed) view when message is present", () => {
+    const html = renderCommitAssistantHtml(
+      {
+        diffContext: baseDiffContext,
+        recovered: false,
+        canPush: true,
+        pendingPushCount: 0,
+        message: { summary: "fix: something", description: "desc", riskLevel: "low" },
+        commitState: { status: "pushed", commitHash: "abc1234" }
+      },
+      { cspSource: "vscode-resource:", nonce: "test-nonce" }
+    );
+
+    expect(html).toContain('id="copyMessage"');
+  });
+
+  // ── regenerate button ─────────────────────────────────────────────────────
+
+  it("renders a regenerate button in the generated (edit) view", () => {
+    const html = renderCommitAssistantHtml(
+      {
+        diffContext: baseDiffContext,
+        recovered: false,
+        canPush: true,
+        message: { summary: "fix: something", description: "desc", riskLevel: "low" }
+      },
+      { cspSource: "vscode-resource:", nonce: "test-nonce" }
+    );
+
+    expect(html).toContain('id="regenerate"');
+    expect(html).toContain("Regenerate");
+  });
+
+  it("does not render a regenerate button in the preview view", () => {
+    const html = renderCommitAssistantHtml(
+      {
+        diffContext: baseDiffContext,
+        recovered: false,
+        canPush: true,
+        message: undefined
+      },
+      { cspSource: "vscode-resource:", nonce: "test-nonce" }
+    );
+
+    expect(html).not.toContain('id="regenerate"');
+  });
 });
