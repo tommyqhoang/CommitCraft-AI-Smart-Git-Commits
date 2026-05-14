@@ -87,6 +87,7 @@ async function handleMessage(
     }
   } catch (err) {
     const errorText = err instanceof Error ? err.message : String(err);
+    void vscode.window.showErrorMessage(`CommitCraft: ${errorText}`);
     void panel.webview.postMessage({ command: "error", text: errorText });
   }
 }
