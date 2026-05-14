@@ -2,7 +2,7 @@
   "name": "commitcraft-ai-smart-git-commits",
   "displayName": "CommitCraft AI: Smart Git Commits",
   "description": "AI-powered Git commit messages from your local changes. Review files, generate a structured message via OpenRouter, then commit, push, or undo from a guarded VS Code panel.",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "publisher": "CommitCraftAISmartGitCommits",
   "icon": "assets/icon.png",
   "galleryBanner": {
