@@ -19,6 +19,7 @@ import { parseCommitResponse, type GeneratedCommitMessage } from "../openrouter/
 import type { CommitReviewData } from "../ui/commitReviewPanel";
 import { showCommitReviewPanel } from "../ui/commitReviewPanel";
 import type { ActivityHistoryItem } from "../ui/commitAssistantHtml";
+import { CommitCraftError, NetworkError, UserInputError } from "../errors";
 import { confirmAction, showInfo, showPlainError, showRetryableError } from "../ui/notifications";
 
 export interface GenerateCommandDependencies {
@@ -114,12 +115,12 @@ export async function generateCommitMessage(
                   selectedDiffContext.diff.trim().length === 0 ||
                   selectedDiffContext.files.length === 0
                 ) {
-                  throw new Error("Select at least one safe changed file to summarize.");
+                  throw new UserInputError("Select at least one safe changed file to summarize.");
                 }
 
                 const token = await getOrPromptForToken(context);
                 if (!token) {
-                  throw new Error("Add an OpenRouter API key to generate a commit message.");
+                  throw new UserInputError("Add an OpenRouter API key to generate a commit message.");
                 }
 
                 const [repositoryName, branchName, languageHints] = await Promise.all([
@@ -137,20 +138,24 @@ export async function generateCommitMessage(
                   stats: selectedDiffContext.stats,
                   truncated: selectedDiffContext.truncated
                 });
-                const aiResponse = await vscode.window.withProgress(
-                  {
-                    location: vscode.ProgressLocation.Notification,
-                    title: "CommitCraft: generating smart Git commit",
-                    cancellable: false
-                  },
-                  () =>
-                    openRouterClient.generateCommitMessage({
-                      token,
-                      model: settings.openRouterModel,
-                      fallbackModel: settings.fallbackModel,
-                      prompt
-                    })
-                );
+                const aiResponse = await vscode.window
+                  .withProgress(
+                    {
+                      location: vscode.ProgressLocation.Notification,
+                      title: "CommitCraft: generating smart Git commit",
+                      cancellable: false
+                    },
+                    () =>
+                      openRouterClient.generateCommitMessage({
+                        token,
+                        model: settings.openRouterModel,
+                        fallbackModel: settings.fallbackModel,
+                        prompt
+                      })
+                  )
+                  .catch((err: unknown) => {
+                    throw classifyNetworkError(err);
+                  });
                 const parsed = parseCommitResponse(aiResponse.content);
                 generatedDiffContext = selectedDiffContext;
                 generatedMessage = parsed.message;
@@ -363,7 +368,9 @@ export async function generateCommitMessage(
           );
           context.subscriptions.push(panel);
         } catch (error) {
-          const retry = await showRetryableError(formatError(error));
+          const retry = await showRetryableError(
+            error instanceof CommitCraftError ? error.userMessage : formatError(error)
+          );
           if (retry === "Retry") {
             shouldRetry = true;
           }
@@ -401,7 +408,7 @@ async function getOrPromptForToken(context: vscode.ExtensionContext): Promise<st
 
 function getGeneratedFiles(generatedDiffContext: DiffContext | undefined): string[] {
   if (!generatedDiffContext) {
-    throw new Error("Generate a commit message before committing.");
+    throw new UserInputError("Generate a commit message before committing.");
   }
 
   return generatedDiffContext.files;
@@ -463,8 +470,7 @@ async function commitReviewedMessage(
 ): Promise<boolean> {
   const normalized = message.trim();
   if (normalized.length === 0) {
-    await showPlainError("Commit message cannot be empty.");
-    return false;
+    throw new UserInputError("Commit message cannot be empty.");
   }
 
   const action = hasStagedChanges ? "Commit Staged Changes" : "Stage and Commit";
@@ -578,4 +584,27 @@ function formatPushActivityDetail(result: PushActionResult): string {
 
 function formatError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function classifyNetworkError(error: unknown): NetworkError {
+  if (error instanceof NetworkError) {
+    return error;
+  }
+  const message = formatError(error);
+  if (/timed out/i.test(message)) {
+    return new NetworkError("Request timed out. Check your connection and try again.", message);
+  }
+  if (/401|403|authentication|unauthorized/i.test(message)) {
+    return new NetworkError(
+      'Invalid API key. Re-enter it with "CommitCraft: Set API Key".',
+      message
+    );
+  }
+  if (/429|rate limit/i.test(message)) {
+    return new NetworkError("Rate limit hit. Wait a moment and try again.", message);
+  }
+  if (/5\d{2}|service unavailable|internal server/i.test(message)) {
+    return new NetworkError("OpenRouter is temporarily unavailable. Try again shortly.", message);
+  }
+  return new NetworkError(message, message);
 }

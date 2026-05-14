@@ -1,6 +1,8 @@
 import { randomBytes } from "node:crypto";
 import path from "node:path";
 
+import { CommitCraftError } from "../errors";
+
 import * as vscode from "vscode";
 
 import { renderCommitAssistantHtml, type CommitAssistantData } from "./commitAssistantHtml";
@@ -86,9 +88,14 @@ async function handleMessage(
       await vscode.window.showTextDocument(doc, { preview: false, preserveFocus: true });
     }
   } catch (err) {
-    const errorText = err instanceof Error ? err.message : String(err);
-    void vscode.window.showErrorMessage(`CommitCraft: ${errorText}`);
-    void panel.webview.postMessage({ command: "error", text: errorText });
+    const userMessage =
+      err instanceof CommitCraftError
+        ? err.userMessage
+        : err instanceof Error
+          ? err.message
+          : String(err);
+    void vscode.window.showErrorMessage(`CommitCraft: ${userMessage}`);
+    void panel.webview.postMessage({ command: "error", text: userMessage });
   }
 }
 

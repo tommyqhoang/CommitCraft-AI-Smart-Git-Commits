@@ -1,6 +1,8 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 
+import { GitOperationError } from "../errors";
+
 const execFileAsync = promisify(execFile);
 
 export interface GitCommitOptions {
@@ -90,12 +92,16 @@ export class GitService {
       throw new Error(readiness.reason ?? "Repository is not ready to push.");
     }
 
-    await this.git(workspacePath, [
-      "push",
-      "-u",
-      readiness.remoteName ?? "origin",
-      readiness.branchName
-    ]);
+    try {
+      await this.git(workspacePath, [
+        "push",
+        "-u",
+        readiness.remoteName ?? "origin",
+        readiness.branchName
+      ]);
+    } catch (error) {
+      throw classifyPushError(error);
+    }
   }
 
   async getHeadShortHash(workspacePath: string): Promise<string> {
@@ -142,4 +148,41 @@ export class GitService {
     });
     return stdout;
   }
+}
+
+function classifyPushError(error: unknown): GitOperationError {
+  const stderr = ((error as { stderr?: string }).stderr ?? "").toLowerCase();
+  const message = error instanceof Error ? error.message : String(error);
+
+  if (/rejected|non-fast-forward|would overwrite/.test(stderr)) {
+    return new GitOperationError(
+      "Push rejected — remote has commits you don't have locally. Pull first.",
+      message
+    );
+  }
+  if (/authentication failed|could not read username|permission denied|403/.test(stderr)) {
+    return new GitOperationError(
+      "Git authentication failed. Check your credentials.",
+      message
+    );
+  }
+  if (/could not resolve host|unable to connect|network/.test(stderr)) {
+    return new GitOperationError(
+      "Could not reach remote. Check your network connection.",
+      message
+    );
+  }
+
+  const cleaned = (error as { stderr?: string }).stderr
+    ?.replace(/^error:\s*/gim, "")
+    .replace(/^fatal:\s*/gim, "")
+    .replace(/^hint:.*$/gim, "")
+    .replace(/\r?\n+/g, " ")
+    .trim()
+    .slice(0, 200);
+
+  return new GitOperationError(
+    cleaned?.length ? cleaned : "Push failed. Check your remote configuration.",
+    message
+  );
 }
