@@ -678,4 +678,52 @@ describe("renderCommitAssistantHtml", () => {
     expect(html).toContain("showError");
     expect(html).toContain('command === "error"');
   });
+
+  // ── char counter ─────────────────────────────────────────────────────────
+
+  it("renders a character counter next to the summary label in the generated view", () => {
+    const html = renderCommitAssistantHtml(
+      {
+        diffContext: baseDiffContext,
+        recovered: false,
+        canPush: true,
+        message: { summary: "fix: something", description: "desc", riskLevel: "low" }
+      },
+      { cspSource: "vscode-resource:", nonce: "test-nonce" }
+    );
+
+    expect(html).toContain('id="summary-counter"');
+    expect(html).toContain("/ 72");
+    expect(html).toContain("14 / 72");
+  });
+
+  it("includes JS that toggles summary-over class when over 72 chars", () => {
+    const html = renderCommitAssistantHtml(
+      {
+        diffContext: baseDiffContext,
+        recovered: false,
+        canPush: true,
+        message: { summary: "feat: new", description: "", riskLevel: "low" }
+      },
+      { cspSource: "vscode-resource:", nonce: "test-nonce" }
+    );
+
+    expect(html).toContain("summary-counter");
+    expect(html).toContain("summary-over");
+    expect(html).toContain("updateSummaryCounter");
+  });
+
+  it("does not render a character counter in the preview view", () => {
+    const html = renderCommitAssistantHtml(
+      {
+        diffContext: baseDiffContext,
+        recovered: false,
+        canPush: true,
+        message: undefined
+      },
+      { cspSource: "vscode-resource:", nonce: "test-nonce" }
+    );
+
+    expect(html).not.toContain('id="summary-counter"');
+  });
 });

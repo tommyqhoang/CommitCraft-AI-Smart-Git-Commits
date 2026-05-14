@@ -282,15 +282,28 @@ const CSS = `
   .message-block:focus-within { border-color: var(--cc-accent); }
   .message-field-row { display: flex; flex-direction: column; }
   .message-field-row + .message-field-row { border-top: 1px solid var(--cc-border); }
+  .field-label-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 9px 14px 3px;
+  }
   .field-label {
     font-size: 10px;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.07em;
     color: var(--cc-muted);
-    padding: 9px 14px 3px;
     display: block;
   }
+  .char-counter {
+    font-size: 10px;
+    color: var(--cc-muted);
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
+    transition: color 0.15s;
+  }
+  .char-counter.summary-over { color: var(--cc-removed); font-weight: 600; }
   input#summary, textarea#description {
     background: transparent;
     border: 0;
@@ -478,9 +491,11 @@ export function renderCommitAssistantHtml(
     warnings.length > 0
       ? `<div class="warnings">${warnings.map((w) => `<p>${escapeHtml(w)}</p>`).join("")}</div>`
       : "";
-  const pushTitle = data.canPush
-    ? "Push the current branch"
-    : (data.pushDisabledReason ?? "Push is unavailable for this repository state");
+  const pushTitle = !data.canPush
+    ? (data.pushDisabledReason ?? "Push is unavailable for this repository state")
+    : data.pendingPushCount
+      ? "Push the current branch"
+      : "No unpushed commits";
   const csp = [
     "default-src 'none'",
     `style-src ${options.cspSource} 'unsafe-inline'`,
@@ -508,6 +523,15 @@ export function renderCommitAssistantHtml(
     const summary = document.getElementById("summary");
     const description = document.getElementById("description");
     const errorEl = document.getElementById("error");
+    const summaryCounter = document.getElementById("summary-counter");
+    function updateSummaryCounter() {
+      if (!summary || !summaryCounter) return;
+      const len = summary.value.length;
+      summaryCounter.textContent = len + " / 72";
+      summaryCounter.classList.toggle("summary-over", len > 72);
+    }
+    summary?.addEventListener("input", updateSummaryCounter);
+    updateSummaryCounter();
     function showError(text) {
       errorEl.textContent = text;
       errorEl.style.display = "block";
@@ -660,11 +684,14 @@ function renderGeneratedView(data: CommitAssistantData, pushTitle: string): stri
     ${renderPendingPushPanel(data)}
     <div class="message-block">
       <div class="message-field-row">
-        <label class="field-label" for="summary">Summary</label>
+        <div class="field-label-row">
+          <label class="field-label" for="summary">Summary</label>
+          <span id="summary-counter" class="char-counter">${escapeHtml(String(message.summary.length))} / 72</span>
+        </div>
         <input id="summary" value="${escapeHtml(message.summary)}" spellcheck="true">
       </div>
       <div class="message-field-row">
-        <label class="field-label" for="description">Description</label>
+        <label class="field-label" for="description" style="padding:9px 14px 3px;">Description</label>
         <textarea id="description" spellcheck="true">${escapeHtml(message.description)}</textarea>
       </div>
     </div>
@@ -678,7 +705,7 @@ function renderGeneratedView(data: CommitAssistantData, pushTitle: string): stri
     </div>
     <div class="action-bar">
       <button id="commit" class="primary">Commit</button>
-      <button id="push" class="push-btn" title="${escapeHtml(pushTitle)}" ${data.canPush ? "" : "disabled"}>&#8593; Push</button>
+      <button id="push" class="push-btn" title="${escapeHtml(pushTitle)}" ${data.canPush && data.pendingPushCount ? "" : "disabled"}>&#8593; Push</button>
       <button id="commitAndPush" class="secondary" title="${escapeHtml(pushTitle)}" ${data.canPush ? "" : "disabled"}>Commit + Push</button>
     </div>
     ${!data.canPush ? `<p class="muted">${escapeHtml(pushTitle)}</p>` : ""}`;
