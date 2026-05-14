@@ -313,9 +313,9 @@ async function collectUntrackedFileDiff(
   safeFiles: string[]
 ): Promise<string> {
   const safeSet = new Set(safeFiles);
-  const untrackedFiles = (await listUntrackedFiles(workspacePath))
-    .filter(isSafeDiffFile)
-    .filter((file) => safeSet.has(file));
+  const untrackedFiles = (await listUntrackedFiles(workspacePath)).filter((file) =>
+    safeSet.has(file)
+  );
   const chunks: string[] = [];
 
   for (const file of untrackedFiles) {
