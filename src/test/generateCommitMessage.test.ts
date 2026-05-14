@@ -47,6 +47,7 @@ vi.mock("../config/vscodeSettings", () => ({
 // Import mocked diffCollector functions for per-test setup.
 import * as diffCollector from "../git/diffCollector";
 import { showCommitReviewPanel } from "../ui/commitReviewPanel";
+import { getAiCommitSettings } from "../config/vscodeSettings";
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -465,7 +466,6 @@ describe("generateCommitMessage", () => {
 
   describe("skipCommitConfirmation setting", () => {
     it("commits without a confirmation modal when skipCommitConfirmation is true", async () => {
-      const { getAiCommitSettings } = await import("../config/vscodeSettings");
       vi.mocked(getAiCommitSettings).mockReturnValueOnce({
         openRouterModel: "openai/gpt-4o",
         fallbackModel: "openai/gpt-4o-mini",
@@ -557,6 +557,28 @@ describe("generateCommitMessage", () => {
       const { handlers } = await runAndCaptureHandlers(makeGitService(), openRouterClient);
       // classifyNetworkError returns the original NetworkError instance unchanged
       await expect(handlers.generate(["src/a.ts"])).rejects.toBe(original);
+    });
+  });
+
+  // ── regenerate handler ────────────────────────────────────────────────────
+
+  describe("regenerate handler", () => {
+    it("re-runs AI with the previously selected files", async () => {
+      const openRouterClient = makeOpenRouterClient();
+      const { handlers } = await runAndCaptureHandlers(makeGitService(), openRouterClient);
+
+      // generate first to set generatedDiffContext
+      await handlers.generate(["src/a.ts"]);
+      vi.mocked(openRouterClient.generateCommitMessage).mockClear();
+
+      const result = await handlers.regenerate();
+      expect(openRouterClient.generateCommitMessage).toHaveBeenCalledOnce();
+      expect(result.message).toBeDefined();
+    });
+
+    it("throws UserInputError when regenerating before any generation has occurred", async () => {
+      const { handlers } = await runAndCaptureHandlers(makeGitService());
+      await expect(handlers.regenerate()).rejects.toBeInstanceOf(UserInputError);
     });
   });
 });

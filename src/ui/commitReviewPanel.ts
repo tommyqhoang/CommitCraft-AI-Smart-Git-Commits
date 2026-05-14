@@ -11,6 +11,7 @@ export type CommitReviewData = CommitAssistantData;
 
 export interface CommitReviewHandlers {
   generate: (files: string[]) => Promise<CommitReviewData>;
+  regenerate: () => Promise<CommitReviewData>;
   commit: (message: string) => Promise<CommitReviewData | undefined>;
   push: () => Promise<CommitReviewData | undefined>;
   commitAndPush: (message: string) => Promise<CommitReviewData | undefined>;
@@ -63,6 +64,9 @@ async function handleMessage(
   try {
     if (message.command === "generate") {
       const updatedData = await handlers.generate(message.files ?? []);
+      setPanelHtml(panel, updatedData);
+    } else if (message.command === "regenerate") {
+      const updatedData = await handlers.regenerate();
       setPanelHtml(panel, updatedData);
     } else if (message.command === "commit") {
       updatePanelIfChanged(panel, await handlers.commit(message.message ?? ""));

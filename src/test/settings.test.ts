@@ -18,16 +18,15 @@ describe("readSettingsFromConfig", () => {
   });
 
   it("skipCommitConfirmation defaults to false", () => {
-    const config: ConfigReader = { get: vi.fn().mockReturnValue(undefined) };
-    const settings = readSettingsFromConfig(config);
+    const settings = readSettingsFromConfig({ get: () => undefined });
     expect(settings.skipCommitConfirmation).toBe(false);
   });
 
   it("skipCommitConfirmation reads true from config", () => {
-    const config: ConfigReader = {
-      get: vi.fn((key: string) => (key === "skipCommitConfirmation" ? true : undefined))
-    };
-    const settings = readSettingsFromConfig(config);
+    const settings = readSettingsFromConfig({
+      get: <T>(key: string): T | undefined =>
+        (key === "skipCommitConfirmation" ? (true as unknown as T) : undefined)
+    });
     expect(settings.skipCommitConfirmation).toBe(true);
   });
 

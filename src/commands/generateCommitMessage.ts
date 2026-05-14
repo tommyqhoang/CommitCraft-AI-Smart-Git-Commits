@@ -87,6 +87,71 @@ export async function generateCommitMessage(
           let generatedRecoveryReason: string | undefined;
           const activityHistory: ActivityHistoryItem[] = [];
 
+          const generateFromDiffContext = async (diffCtx: DiffContext): Promise<CommitReviewData> => {
+            const token = await getOrPromptForToken(context);
+            if (!token) {
+              throw new UserInputError("Add an OpenRouter API key to generate a commit message.");
+            }
+
+            const [repositoryName, branchName, languageHints] = await Promise.all([
+              getRepositoryName(workspacePath),
+              getBranchName(workspacePath),
+              detectLanguageHints(diffCtx.files)
+            ]);
+            const prompt = buildCommitPrompt({
+              repositoryName,
+              branchName,
+              diff: diffCtx.diff,
+              diffSource: diffCtx.diffSource,
+              files: diffCtx.files,
+              languageHints,
+              stats: diffCtx.stats,
+              truncated: diffCtx.truncated
+            });
+            let aiResponse: GenerateCommitResponse;
+            try {
+              aiResponse = await vscode.window.withProgress(
+                {
+                  location: vscode.ProgressLocation.Notification,
+                  title: "CommitCraft: generating smart Git commit",
+                  cancellable: false
+                },
+                () =>
+                  openRouterClient.generateCommitMessage({
+                    token,
+                    model: settings.openRouterModel,
+                    fallbackModel: settings.fallbackModel,
+                    prompt
+                  })
+              );
+            } catch (err) {
+              throw classifyNetworkError(err);
+            }
+            const parsed = parseCommitResponse(aiResponse.content);
+            generatedDiffContext = diffCtx;
+            generatedMessage = parsed.message;
+            generatedModelUsed = aiResponse.modelUsed;
+            generatedRecovered = parsed.recovered;
+            generatedRecoveryReason = parsed.recoveryReason;
+
+            const [freshPushReadiness, freshPendingPushCount] = await Promise.all([
+              gitService.getPushReadiness(workspacePath),
+              gitService.getUnpushedCommitCount(workspacePath)
+            ]);
+
+            return {
+              message: parsed.message,
+              modelUsed: aiResponse.modelUsed,
+              diffContext: diffCtx,
+              recovered: parsed.recovered,
+              recoveryReason: parsed.recoveryReason,
+              canPush: freshPushReadiness.canPush,
+              pushDisabledReason: freshPushReadiness.canPush ? undefined : freshPushReadiness.reason,
+              pendingPushCount: freshPendingPushCount,
+              activityHistory
+            };
+          };
+
           const panel = showCommitReviewPanel(
             {
               diffContext: currentDiffContext,
@@ -115,73 +180,13 @@ export async function generateCommitMessage(
                 ) {
                   throw new UserInputError("Select at least one safe changed file to summarize.");
                 }
-
-                const token = await getOrPromptForToken(context);
-                if (!token) {
-                  throw new UserInputError(
-                    "Add an OpenRouter API key to generate a commit message."
-                  );
+                return generateFromDiffContext(selectedDiffContext);
+              },
+              regenerate: async () => {
+                if (!generatedDiffContext) {
+                  throw new UserInputError("Generate a commit message before regenerating.");
                 }
-
-                const [repositoryName, branchName, languageHints] = await Promise.all([
-                  getRepositoryName(workspacePath),
-                  getBranchName(workspacePath),
-                  detectLanguageHints(selectedDiffContext.files)
-                ]);
-                const prompt = buildCommitPrompt({
-                  repositoryName,
-                  branchName,
-                  diff: selectedDiffContext.diff,
-                  diffSource: selectedDiffContext.diffSource,
-                  files: selectedDiffContext.files,
-                  languageHints,
-                  stats: selectedDiffContext.stats,
-                  truncated: selectedDiffContext.truncated
-                });
-                let aiResponse: GenerateCommitResponse;
-                try {
-                  aiResponse = await vscode.window.withProgress(
-                    {
-                      location: vscode.ProgressLocation.Notification,
-                      title: "CommitCraft: generating smart Git commit",
-                      cancellable: false
-                    },
-                    () =>
-                      openRouterClient.generateCommitMessage({
-                        token,
-                        model: settings.openRouterModel,
-                        fallbackModel: settings.fallbackModel,
-                        prompt
-                      })
-                  );
-                } catch (err) {
-                  throw classifyNetworkError(err);
-                }
-                const parsed = parseCommitResponse(aiResponse.content);
-                generatedDiffContext = selectedDiffContext;
-                generatedMessage = parsed.message;
-                generatedModelUsed = aiResponse.modelUsed;
-                generatedRecovered = parsed.recovered;
-                generatedRecoveryReason = parsed.recoveryReason;
-
-                const [freshPushReadiness, freshPendingPushCount] = await Promise.all([
-                  gitService.getPushReadiness(workspacePath),
-                  gitService.getUnpushedCommitCount(workspacePath)
-                ]);
-
-                return {
-                  message: parsed.message,
-                  modelUsed: aiResponse.modelUsed,
-                  diffContext: selectedDiffContext,
-                  recovered: parsed.recovered,
-                  recoveryReason: parsed.recoveryReason,
-                  canPush: freshPushReadiness.canPush,
-                  pushDisabledReason: freshPushReadiness.canPush
-                    ? undefined
-                    : freshPushReadiness.reason,
-                  pendingPushCount: freshPendingPushCount,
-                  activityHistory
-                };
+                return generateFromDiffContext(generatedDiffContext);
               },
               commit: async (message) => {
                 const currentHasStagedChanges = await gitService.hasStagedChanges(workspacePath);
