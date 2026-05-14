@@ -294,13 +294,11 @@ describe("CommitSession", () => {
   describe("push", () => {
     it("returns undefined and shows error when push is not ready", async () => {
       const git = makeGitService({
-        getPushReadiness: vi
-          .fn()
-          .mockResolvedValue({
-            canPush: false,
-            reason: "No remote configured.",
-            branchName: "main"
-          })
+        getPushReadiness: vi.fn().mockResolvedValue({
+          canPush: false,
+          reason: "No remote configured.",
+          branchName: "main"
+        })
       });
       const session = makeSession({ gitService: git });
       const result = await session.push();
