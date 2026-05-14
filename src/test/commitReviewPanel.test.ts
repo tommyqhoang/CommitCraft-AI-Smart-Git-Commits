@@ -468,4 +468,214 @@ describe("renderCommitAssistantHtml", () => {
     expect(html).toContain(".env");
     expect(html).not.toContain('id="generate"');
   });
+
+  it("shows Pushed state with no push or undo buttons after a successful push", () => {
+    const html = renderCommitAssistantHtml(
+      {
+        modelUsed: "openrouter/auto",
+        diffContext: baseDiffContext,
+        recovered: false,
+        canPush: true,
+        canReviewChanges: false,
+        pendingPushCount: 0,
+        commitState: {
+          status: "pushed",
+          commitHash: "abc1234"
+        },
+        message: {
+          summary: "feat: ship the feature",
+          description: "",
+          riskLevel: "low"
+        }
+      },
+      { cspSource: "vscode-resource:", nonce: "test-nonce" }
+    );
+
+    expect(html).toContain("Pushed");
+    expect(html).toContain("abc1234");
+    expect(html).not.toContain('id="push"');
+    expect(html).not.toContain('id="undoCommit"');
+    expect(html).not.toContain('id="commit"');
+  });
+
+  it("shows Review Remaining Changes button after push when worktree still has changes", () => {
+    const html = renderCommitAssistantHtml(
+      {
+        modelUsed: "openrouter/auto",
+        diffContext: baseDiffContext,
+        recovered: false,
+        canPush: true,
+        canReviewChanges: true,
+        pendingPushCount: 0,
+        commitState: {
+          status: "pushed",
+          commitHash: "abc1234"
+        },
+        message: {
+          summary: "feat: partial commit",
+          description: "",
+          riskLevel: "low"
+        }
+      },
+      { cspSource: "vscode-resource:", nonce: "test-nonce" }
+    );
+
+    expect(html).toContain("Pushed");
+    expect(html).toContain('id="reviewChanges"');
+    expect(html).toContain("Review Remaining Changes");
+    expect(html).not.toContain('id="push"');
+    expect(html).not.toContain('id="undoCommit"');
+  });
+
+  it("disables push and commitAndPush in the generated view when canPush is false", () => {
+    const html = renderCommitAssistantHtml(
+      {
+        modelUsed: "openrouter/auto",
+        diffContext: baseDiffContext,
+        recovered: false,
+        canPush: false,
+        pushDisabledReason: "Cannot push from a detached HEAD state.",
+        message: {
+          summary: "feat: some change",
+          description: "",
+          riskLevel: "low"
+        }
+      },
+      { cspSource: "vscode-resource:", nonce: "test-nonce" }
+    );
+
+    expect(html).toContain('id="push"');
+    expect(html).toContain("disabled");
+    expect(html).toContain('id="commitAndPush"');
+    expect(html).toContain("Cannot push from a detached HEAD state.");
+  });
+
+  it("disables push in post-commit view when canPush is false and shows reason", () => {
+    const html = renderCommitAssistantHtml(
+      {
+        modelUsed: "openrouter/auto",
+        diffContext: baseDiffContext,
+        recovered: false,
+        canPush: false,
+        pushDisabledReason: "No Git remote is configured for this repository.",
+        commitState: {
+          status: "committed",
+          commitHash: "abc1234"
+        },
+        message: {
+          summary: "feat: local only commit",
+          description: "",
+          riskLevel: "low"
+        }
+      },
+      { cspSource: "vscode-resource:", nonce: "test-nonce" }
+    );
+
+    expect(html).toContain("Committed");
+    expect(html).toContain('id="push"');
+    expect(html).toContain("disabled");
+    expect(html).toContain("No Git remote is configured for this repository.");
+  });
+
+  it("disables push in pendingPush view when canPush is false", () => {
+    const html = renderCommitAssistantHtml(
+      {
+        diffContext: {
+          ...baseDiffContext,
+          diff: "",
+          fullDiff: "",
+          files: [],
+          excludedFiles: [],
+          stats: { filesChanged: 0, linesAdded: 0, linesRemoved: 0 }
+        },
+        recovered: false,
+        canPush: false,
+        pushDisabledReason: "Cannot push from a detached HEAD state.",
+        pendingPushCount: 1,
+        commitState: {
+          status: "pendingPush",
+          commitHash: "abc1234"
+        }
+      },
+      { cspSource: "vscode-resource:", nonce: "test-nonce" }
+    );
+
+    expect(html).toContain("Ready to Push");
+    expect(html).toContain('id="push"');
+    expect(html).toContain("disabled");
+    expect(html).toContain("Cannot push from a detached HEAD state.");
+  });
+
+  it("does not show push banner in preview view when pendingPushCount is zero or absent", () => {
+    const html = renderCommitAssistantHtml(
+      {
+        modelUsed: undefined,
+        diffContext: baseDiffContext,
+        recovered: false,
+        canPush: true,
+        pendingPushCount: 0,
+        message: undefined
+      },
+      { cspSource: "vscode-resource:", nonce: "test-nonce" }
+    );
+
+    expect(html).not.toContain("ready to push");
+    expect(html).not.toContain('class="push-banner"');
+  });
+
+  it("disables push button in preview view when canPush is false with pending commits", () => {
+    const html = renderCommitAssistantHtml(
+      {
+        modelUsed: undefined,
+        diffContext: baseDiffContext,
+        recovered: false,
+        canPush: false,
+        pushDisabledReason: "Cannot push from a detached HEAD state.",
+        pendingPushCount: 2,
+        message: undefined
+      },
+      { cspSource: "vscode-resource:", nonce: "test-nonce" }
+    );
+
+    expect(html).toContain('id="push"');
+    expect(html).toContain("disabled");
+    expect(html).toContain("Cannot push from a detached HEAD state.");
+    expect(html).toContain('id="generate"');
+  });
+
+  it("does not show the inline push button in preview view when there are no pending commits", () => {
+    const html = renderCommitAssistantHtml(
+      {
+        modelUsed: undefined,
+        diffContext: baseDiffContext,
+        recovered: false,
+        canPush: true,
+        pendingPushCount: 0,
+        message: undefined
+      },
+      { cspSource: "vscode-resource:", nonce: "test-nonce" }
+    );
+
+    // generate button present, but no push button in the preview action area
+    expect(html).toContain('id="generate"');
+    expect(html).not.toContain('id="push"');
+  });
+
+  it("error div is hidden by default and the message handler calls showError", () => {
+    const html = renderCommitAssistantHtml(
+      {
+        modelUsed: undefined,
+        diffContext: baseDiffContext,
+        recovered: false,
+        canPush: true,
+        message: undefined
+      },
+      { cspSource: "vscode-resource:", nonce: "test-nonce" }
+    );
+
+    expect(html).toContain('id="error"');
+    expect(html).toContain('style="display:none;"');
+    expect(html).toContain("showError");
+    expect(html).toContain('command === "error"');
+  });
 });

@@ -498,7 +498,7 @@ export function renderCommitAssistantHtml(
 </head>
 <body>
   <main>
-    ${data.commitState ? renderPostCommitView(data, pushTitle) : data.message ? renderGeneratedView(data, pushTitle) : renderPreviewView(data)}
+    ${data.commitState ? renderPostCommitView(data, pushTitle) : data.message ? renderGeneratedView(data, pushTitle) : renderPreviewView(data, pushTitle)}
     ${renderActivityHistory(data.activityHistory)}
     ${warningHtml}
     <p id="error" role="alert" style="display:none;"></p>
@@ -559,7 +559,7 @@ export function renderCommitAssistantHtml(
 </html>`;
 }
 
-function renderPreviewView(data: CommitAssistantData): string {
+function renderPreviewView(data: CommitAssistantData, pushTitle: string): string {
   const hasSummarizableFiles = data.diffContext.files.length > 0;
   const sourceLabel = data.diffContext.diffSource === "staged" ? "staged" : "unstaged";
 
@@ -604,7 +604,7 @@ function renderPreviewView(data: CommitAssistantData): string {
         hasSummarizableFiles
           ? `<div class="file-list">${files}</div>
              <div class="block-body">
-               ${data.pendingPushCount ? `<div class="action-bar" style="margin-bottom:8px"><button id="push" class="push-btn">&#8593; Push ${escapeHtml(formatPendingPushCount(data.pendingPushCount) ?? "")}</button><button id="undoCommit" class="secondary">&#8629; Undo Last Commit</button></div>` : ""}
+               ${data.pendingPushCount ? `<div class="action-bar" style="margin-bottom:8px"><button id="push" class="push-btn" title="${escapeHtml(pushTitle)}" ${data.canPush ? "" : "disabled"}>&#8593; Push ${escapeHtml(formatPendingPushCount(data.pendingPushCount) ?? "")}</button><button id="undoCommit" class="secondary">&#8629; Undo Last Commit</button></div>${!data.canPush ? `<p class="muted">${escapeHtml(pushTitle)}</p>` : ""}` : ""}
                <button id="generate" class="generate-btn">Generate Message &#8594;</button>
              </div>`
           : `<div class="block-body"><p class="muted">No safe text files are available to summarize.</p></div>`
