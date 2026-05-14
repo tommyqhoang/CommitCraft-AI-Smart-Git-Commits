@@ -374,6 +374,31 @@ describe("generateCommitMessage", () => {
       const result = await handlers.commitAndPush("feat: both");
       expect(result?.commitState?.status).toBe("pushed");
     });
+
+    it("returns committed state and shows error notification when push throws after commit succeeds", async () => {
+      vscode.window.showWarningMessage = vi
+        .fn()
+        .mockResolvedValueOnce("Stage and Commit")
+        .mockResolvedValueOnce("Push");
+
+      const git = makeGitService({
+        push: vi
+          .fn()
+          .mockRejectedValue(
+            new GitOperationError(
+              "Push rejected — remote has commits you don't have locally. Pull first."
+            )
+          )
+      });
+
+      const { handlers } = await runAndCaptureHandlers(git);
+      await handlers.generate(["src/a.ts"]);
+      const result = await handlers.commitAndPush("feat: both");
+      expect(result?.commitState?.status).toBe("committed");
+      expect(vscode.window.showErrorMessage).toHaveBeenCalledWith(
+        expect.stringContaining("Push rejected")
+      );
+    });
   });
 
   // ── undoCommit handler ────────────────────────────────────────────────────

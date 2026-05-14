@@ -268,7 +268,22 @@ export async function generateCommitMessage(
                   generatedRecovered,
                   generatedRecoveryReason
                 });
-                const pushed = await pushWithConfirmation(gitService, workspacePath);
+
+                // Commit has already succeeded — isolate push so a push failure
+                // doesn't discard the committed panel state.
+                let pushed: PushActionResult = { pushed: false };
+                try {
+                  pushed = await pushWithConfirmation(gitService, workspacePath);
+                } catch (pushErr) {
+                  const pushMessage =
+                    pushErr instanceof CommitCraftError
+                      ? pushErr.userMessage
+                      : pushErr instanceof Error
+                        ? pushErr.message
+                        : String(pushErr);
+                  void showPlainError(pushMessage);
+                }
+
                 const data = await buildPostCommitData(
                   gitService,
                   workspacePath,

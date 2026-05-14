@@ -32,7 +32,7 @@ export class GitService {
 
   async commit(options: GitCommitOptions): Promise<void> {
     if (options.filesToStage.length === 0) {
-      throw new Error("No files specified to commit.");
+      throw new GitOperationError("No files specified to commit.");
     }
 
     if (options.stageFilesBeforeCommit) {
@@ -89,7 +89,7 @@ export class GitService {
   async push(workspacePath: string): Promise<void> {
     const readiness = await this.getPushReadiness(workspacePath);
     if (!readiness.canPush) {
-      throw new Error(readiness.reason ?? "Repository is not ready to push.");
+      throw new GitOperationError(readiness.reason ?? "Repository is not ready to push.");
     }
 
     try {
