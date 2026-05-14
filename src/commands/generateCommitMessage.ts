@@ -158,15 +158,20 @@ export async function generateCommitMessage(
                 generatedRecovered = parsed.recovered;
                 generatedRecoveryReason = parsed.recoveryReason;
 
+                const [freshPushReadiness, freshPendingPushCount] = await Promise.all([
+                  gitService.getPushReadiness(workspacePath),
+                  gitService.getUnpushedCommitCount(workspacePath)
+                ]);
+
                 return {
                   message: parsed.message,
                   modelUsed: aiResponse.modelUsed,
                   diffContext: selectedDiffContext,
                   recovered: parsed.recovered,
                   recoveryReason: parsed.recoveryReason,
-                  canPush: pushReadiness.canPush,
-                  pushDisabledReason: pushReadiness.canPush ? undefined : pushReadiness.reason,
-                  pendingPushCount: await gitService.getUnpushedCommitCount(workspacePath),
+                  canPush: freshPushReadiness.canPush,
+                  pushDisabledReason: freshPushReadiness.canPush ? undefined : freshPushReadiness.reason,
+                  pendingPushCount: freshPendingPushCount,
                   activityHistory
                 };
               },
