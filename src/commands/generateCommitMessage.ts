@@ -30,17 +30,18 @@ export interface GenerateCommandDependencies {
 export async function generateCommitMessage(
   context: vscode.ExtensionContext,
   dependencies: GenerateCommandDependencies = {}
-): Promise<void> {
+): Promise<vscode.WebviewPanel | undefined> {
   const workspacePath = getWorkspacePath();
   if (!workspacePath) {
     await showPlainError("Open a workspace folder before generating a commit message.");
-    return;
+    return undefined;
   }
 
   const gitService = dependencies.gitService ?? new GitService();
   const openRouterClient = dependencies.openRouterClient ?? new OpenRouterClient();
   const settings = getAiCommitSettings();
 
+  let createdPanel: vscode.WebviewPanel | undefined;
   let shouldRetry = true;
   while (shouldRetry) {
     shouldRetry = false;
@@ -343,7 +344,7 @@ export async function generateCommitMessage(
                   currentDiffContext.diff.trim().length === 0 ||
                   currentDiffContext.files.length === 0
                 ) {
-                  throw new Error("No remaining safe text changes are available to summarize.");
+                  throw new UserInputError("No remaining safe text changes are available to summarize.");
                 }
 
                 const [nextPushReadiness, pendingPushCount] = await Promise.all([
@@ -366,6 +367,7 @@ export async function generateCommitMessage(
             },
             workspacePath
           );
+          createdPanel = panel;
           context.subscriptions.push(panel);
         } catch (error) {
           const retry = await showRetryableError(
@@ -378,6 +380,7 @@ export async function generateCommitMessage(
       }
     );
   }
+  return createdPanel;
 }
 
 function getWorkspacePath(): string | undefined {

@@ -418,13 +418,13 @@ describe("generateCommitMessage", () => {
       expect(result?.diffContext.files).toContain("src/a.ts");
     });
 
-    it("throws when no safe changes remain after refresh", async () => {
+    it("throws UserInputError when no safe changes remain after refresh", async () => {
       vi.mocked(diffCollector.collectDiffContext)
         .mockResolvedValueOnce(makeDiffContext()) // initial load
         .mockResolvedValueOnce(makeDiffContext({ files: [], diff: "", fullDiff: "" })); // refresh
 
       const { handlers } = await runAndCaptureHandlers(makeGitService());
-      await expect(handlers.reviewChanges()).rejects.toBeInstanceOf(Error);
+      await expect(handlers.reviewChanges()).rejects.toBeInstanceOf(UserInputError);
     });
   });
 });

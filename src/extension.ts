@@ -11,7 +11,21 @@ export function activate(context: vscode.ExtensionContext): void {
   statusBarItem.tooltip = "Open CommitCraft commit assistant";
   statusBarItem.show();
 
-  const openCommitAssistant = () => generateCommitMessage(context);
+  let activePanel: vscode.WebviewPanel | undefined;
+
+  const openCommitAssistant = async () => {
+    if (activePanel) {
+      activePanel.reveal(vscode.ViewColumn.One);
+      return;
+    }
+    const panel = await generateCommitMessage(context);
+    if (panel) {
+      activePanel = panel;
+      panel.onDidDispose(() => {
+        activePanel = undefined;
+      });
+    }
+  };
 
   context.subscriptions.push(
     statusBarItem,
