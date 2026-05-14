@@ -65,7 +65,11 @@ export class GitService {
       .map((remote) => remote.trim())
       .filter(Boolean);
 
-    if (remoteName.length === 0 && remoteList.length === 0) {
+    // Prefer the tracked remote if it still exists; fall back to the first available remote.
+    const effectiveRemote =
+      remoteName && remoteList.includes(remoteName) ? remoteName : (remoteList[0] ?? "");
+
+    if (!effectiveRemote) {
       return {
         canPush: false,
         reason: "No Git remote is configured for this repository.",
@@ -76,7 +80,7 @@ export class GitService {
     return {
       canPush: true,
       branchName,
-      remoteName: remoteName || remoteList[0]
+      remoteName: effectiveRemote
     };
   }
 

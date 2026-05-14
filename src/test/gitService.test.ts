@@ -182,6 +182,141 @@ describe("GitService", () => {
       await rm(remotePath, { recursive: true, force: true });
     }
   });
+
+  it("push throws when the repository is in detached HEAD state", async () => {
+    const repoPath = await createGitRepo();
+    const service = new GitService();
+
+    try {
+      const hash = await git(repoPath, ["rev-parse", "HEAD"]);
+      await git(repoPath, ["checkout", "--detach", hash.trim()]);
+      await expect(service.push(repoPath)).rejects.toThrow("detached HEAD");
+    } finally {
+      await rm(repoPath, { recursive: true, force: true });
+    }
+  });
+
+  it("push throws when no remote is configured", async () => {
+    const repoPath = await createGitRepo();
+    const service = new GitService();
+
+    try {
+      await expect(service.push(repoPath)).rejects.toThrow("No Git remote");
+    } finally {
+      await rm(repoPath, { recursive: true, force: true });
+    }
+  });
+
+  it("push throws when the remote rejects a non-fast-forward update", async () => {
+    const { repoPath, remotePath } = await createGitRepoWithRemote();
+    const clonePath = await mkdtemp(path.join(tmpdir(), "commitcraft-clone-"));
+    const service = new GitService();
+
+    try {
+      // Push a diverging commit from a sibling clone so the remote advances
+      await git(clonePath, ["clone", remotePath, "."]);
+      await git(clonePath, ["config", "user.email", "commitcraft-test@invalid.local"]);
+      await git(clonePath, ["config", "user.name", "Test User"]);
+      await writeFile(path.join(clonePath, "remote.txt"), "remote\n");
+      await git(clonePath, ["add", "remote.txt"]);
+      await git(clonePath, ["commit", "-m", "chore: diverge remote"]);
+      await git(clonePath, ["push"]);
+
+      // Add a conflicting commit on the original repo (history has diverged)
+      await writeFile(path.join(repoPath, "local.txt"), "local\n");
+      await service.commit({
+        workspacePath: repoPath,
+        message: "chore: diverge local",
+        filesToStage: ["local.txt"],
+        stageFilesBeforeCommit: true
+      });
+
+      await expect(service.push(repoPath)).rejects.toThrow();
+    } finally {
+      await rm(repoPath, { recursive: true, force: true });
+      await rm(remotePath, { recursive: true, force: true });
+      await rm(clonePath, { recursive: true, force: true });
+    }
+  });
+
+  it("getPushReadiness falls back to first available remote when branch config points to a stale remote", async () => {
+    const repoPath = await createGitRepo();
+    const remotePath = await mkdtemp(path.join(tmpdir(), "commitcraft-remote-"));
+    const service = new GitService();
+
+    try {
+      await git(remotePath, ["init", "--bare"]);
+      await git(repoPath, ["remote", "add", "upstream", remotePath]);
+      // Manually set branch remote config to a name that doesn't exist in the remote list
+      await git(repoPath, ["config", "branch.main.remote", "non-existent-remote"]);
+
+      const readiness = await service.getPushReadiness(repoPath);
+      // Should fall back to "upstream" (first in remoteList) rather than the stale "non-existent-remote"
+      expect(readiness.canPush).toBe(true);
+      expect(readiness.remoteName).toBe("upstream");
+    } finally {
+      await rm(repoPath, { recursive: true, force: true });
+      await rm(remotePath, { recursive: true, force: true });
+    }
+  });
+
+  it("getPushReadiness returns canPush:false when branch config remote is stale and no other remotes exist", async () => {
+    const repoPath = await createGitRepo();
+    const service = new GitService();
+
+    try {
+      // No actual remote added — only a stale branch config entry
+      await git(repoPath, ["config", "branch.main.remote", "non-existent-remote"]);
+
+      const readiness = await service.getPushReadiness(repoPath);
+      expect(readiness.canPush).toBe(false);
+      expect(readiness.reason).toContain("No Git remote");
+    } finally {
+      await rm(repoPath, { recursive: true, force: true });
+    }
+  });
+
+  it("getPushReadiness returns canPush:true with remoteName when remote exists but branch has no tracking", async () => {
+    const repoPath = await createGitRepo();
+    const remotePath = await mkdtemp(path.join(tmpdir(), "commitcraft-remote-"));
+    const service = new GitService();
+
+    try {
+      await git(remotePath, ["init", "--bare"]);
+      await git(repoPath, ["remote", "add", "origin", remotePath]);
+      // Intentionally skip push -u so there is no tracking branch
+
+      const readiness = await service.getPushReadiness(repoPath);
+      expect(readiness.canPush).toBe(true);
+      expect(readiness.remoteName).toBe("origin");
+      expect(readiness.branchName).toBeTruthy();
+    } finally {
+      await rm(repoPath, { recursive: true, force: true });
+      await rm(remotePath, { recursive: true, force: true });
+    }
+  });
+
+  it("getUnpushedCommitCount counts all local commits ahead of the remote after the first push", async () => {
+    const { repoPath, remotePath } = await createGitRepoWithRemote();
+    const service = new GitService();
+
+    try {
+      for (const name of ["a.txt", "b.txt", "c.txt"]) {
+        await writeFile(path.join(repoPath, name), `${name}\n`);
+        await service.commit({
+          workspacePath: repoPath,
+          message: `feat: add ${name}`,
+          filesToStage: [name],
+          stageFilesBeforeCommit: true
+        });
+      }
+
+      await expect(service.getUnpushedCommitCount(repoPath)).resolves.toBe(3);
+    } finally {
+      await rm(repoPath, { recursive: true, force: true });
+      await rm(remotePath, { recursive: true, force: true });
+    }
+  });
 });
 
 async function createGitRepoWithRemote(): Promise<{ repoPath: string; remotePath: string }> {
