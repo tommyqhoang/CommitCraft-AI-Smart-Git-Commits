@@ -26,7 +26,6 @@ jobs:
       - name: Install dependencies
         id: install
         run: npm ci
-        continue-on-error: true
 
       - name: Compile TypeScript
         id: compile
@@ -45,6 +44,7 @@ jobs:
 
       - name: Run tests with coverage
         id: coverage_test
+        if: steps.compile.outcome == 'success'
         run: npm run test:coverage
         continue-on-error: true
 
