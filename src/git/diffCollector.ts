@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { stat } from "node:fs/promises";
+import { lstat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -70,7 +70,8 @@ export type ExcludedFileReason =
   | "secret-like file"
   | "binary or generated asset"
   | "lockfile"
-  | "file too large";
+  | "file too large"
+  | "unsupported file type";
 
 export interface ExcludedDiffFile {
   path: string;
@@ -117,15 +118,15 @@ export async function collectDiffContext(
   const statusFiles = hasStaged
     ? await listStagedFiles(workspacePath)
     : await listUncommittedFiles(workspacePath, options.includeUntrackedFiles);
-  const oversizedFiles = hasStaged
-    ? []
-    : await listOversizedUntrackedFiles(workspacePath, statusFiles);
-  const oversizedSet = new Set(oversizedFiles);
-  const safeFiles = statusFiles.filter((file) => isSafeDiffFile(file) && !oversizedSet.has(file));
+  const unsafeUntrackedFiles = hasStaged
+    ? new Map<string, ExcludedFileReason>()
+    : await listUnsafeUntrackedFiles(workspacePath, statusFiles);
+  const safeFiles = statusFiles.filter(
+    (file) => isSafeDiffFile(file) && !unsafeUntrackedFiles.has(file)
+  );
   const excludedFiles = statusFiles
     .map((file) => {
-      const reason =
-        getExcludedFileReason(file) ?? (oversizedSet.has(file) ? "file too large" : undefined);
+      const reason = getExcludedFileReason(file) ?? unsafeUntrackedFiles.get(file);
       return reason ? { path: file, reason } : undefined;
     })
     .filter((file): file is ExcludedDiffFile => file !== undefined)
@@ -236,25 +237,30 @@ async function listUntrackedFiles(workspacePath: string): Promise<string[]> {
   );
 }
 
-async function listOversizedUntrackedFiles(
+async function listUnsafeUntrackedFiles(
   workspacePath: string,
   statusFiles: string[]
-): Promise<string[]> {
+): Promise<Map<string, ExcludedFileReason>> {
   const untrackedSet = new Set(await listUntrackedFiles(workspacePath));
-  const oversizedFiles: string[] = [];
+  const unsafeFiles = new Map<string, ExcludedFileReason>();
 
   for (const file of statusFiles) {
     if (!untrackedSet.has(file) || !isSafeDiffFile(file)) {
       continue;
     }
 
-    const fileStat = await stat(path.join(workspacePath, file)).catch(() => undefined);
-    if (fileStat?.isFile() && fileStat.size > 100_000) {
-      oversizedFiles.push(file);
+    const fileStat = await lstat(path.join(workspacePath, file)).catch(() => undefined);
+    if (!fileStat?.isFile()) {
+      unsafeFiles.set(file, "unsupported file type");
+      continue;
+    }
+
+    if (fileStat.size > 100_000) {
+      unsafeFiles.set(file, "file too large");
     }
   }
 
-  return oversizedFiles;
+  return unsafeFiles;
 }
 
 export async function getRepositoryName(workspacePath: string): Promise<string> {
@@ -320,7 +326,7 @@ async function collectUntrackedFileDiff(
 
   for (const file of untrackedFiles) {
     const fullPath = path.join(workspacePath, file);
-    const fileStat = await stat(fullPath).catch(() => undefined);
+    const fileStat = await lstat(fullPath).catch(() => undefined);
     if (!fileStat?.isFile() || fileStat.size > 100_000) {
       continue;
     }

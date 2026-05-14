@@ -79,6 +79,9 @@ async function handleMessage(
     } else if (message.command === "reviewChanges") {
       updatePanelIfChanged(panel, await handlers.reviewChanges());
     } else if (message.command === "openFile" && message.path) {
+      if (path.isAbsolute(message.path)) {
+        throw new Error("Cannot open absolute file paths from the assistant.");
+      }
       const resolvedBase = path.resolve(workspacePath);
       const resolvedTarget = path.resolve(path.join(workspacePath, message.path));
       if (resolvedTarget !== resolvedBase && !resolvedTarget.startsWith(resolvedBase + path.sep)) {

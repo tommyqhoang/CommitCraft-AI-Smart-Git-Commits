@@ -225,6 +225,17 @@ describe("panel message handlers", () => {
     expect(vscode.workspace.openTextDocument).not.toHaveBeenCalled();
   });
 
+  it("rejects absolute openFile paths from the webview", async () => {
+    const handlers = makeHandlers();
+    const panel = showCommitReviewPanel(baseReviewData, handlers, "/workspace");
+    await getListener(panel)({ command: "openFile", path: "/etc/passwd" });
+    expect(panel.webview.postMessage).toHaveBeenCalledWith({
+      command: "error",
+      text: "Cannot open absolute file paths from the assistant."
+    });
+    expect(vscode.workspace.openTextDocument).not.toHaveBeenCalled();
+  });
+
   it("posts error to webview when handler throws CommitCraftError", async () => {
     const handlers = makeHandlers({
       commit: vi.fn().mockRejectedValue(new UserInputError("Nothing selected."))

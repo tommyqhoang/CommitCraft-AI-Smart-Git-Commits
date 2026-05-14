@@ -5,7 +5,7 @@
 <h1 align="center">CommitCraft AI: Smart Git Commits</h1>
 
 <p align="center">
-  AI-powered commit messages from your local changes — reviewed, editable, never autonomous.
+  Review local Git changes, generate a conventional commit message with OpenRouter, then commit or push from a guarded VS Code panel.
 </p>
 
 <p align="center">
@@ -13,136 +13,147 @@
     <img src="https://img.shields.io/visual-studio-marketplace/v/CommitCraftAISmartGitCommits.commitcraft-ai-smart-git-commits?label=VS%20Code%20Marketplace&color=0078d4" alt="Marketplace version" />
   </a>
   <a href="https://marketplace.visualstudio.com/items?itemName=CommitCraftAISmartGitCommits.commitcraft-ai-smart-git-commits">
-    <img src="https://img.shields.io/visual-studio-marketplace/d/CommitCraftAISmartGitCommits.commitcraft-ai-smart-git-commits?color=0078d4" alt="Installs" />
+    <img src="https://img.shields.io/visual-studio-marketplace/d/CommitCraftAISmartGitCommits.commitcraft-ai-smart-git-commits?color=0078d4" alt="Marketplace installs" />
   </a>
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT license" />
 </p>
 
 ---
 
-CommitCraft AI opens a focused commit assistant inside VS Code, shows exactly which files will be sent to the AI, generates a structured and editable commit message via [OpenRouter](https://openrouter.ai), then lets you **Commit**, **Push**, or **Commit + Push** — always with your confirmation.
+CommitCraft AI is a VS Code commit assistant for developers who want better commit messages without handing over Git control. It opens from the Command Palette, Source Control title bar, or status bar, shows the exact files that can be summarized, sends only safe selected text diffs to OpenRouter, and renders an editable commit message before any Git action runs.
 
-It is intentionally not autonomous. Nothing is committed or pushed without an explicit click.
+Nothing is committed or pushed automatically. The extension always requires a button click, and push/undo operations still use confirmation prompts.
 
----
+## What You Can Do
 
-## Screenshots
-
-<!-- Screenshot 1: File preview + Generate button (initial state) -->
-<!-- Screenshot 2: Generated message with summary, description, risk badge, and stat strip -->
-<!-- Screenshot 3: Post-commit state with Push / Undo actions and activity timeline -->
-
-> **Want to contribute screenshots?** Capture the CommitCraft panel at each stage and open a PR, or share a link and we'll add them here.
-
----
+- Review changed files before an AI request is made.
+- Generate a conventional commit summary and description from selected safe diffs.
+- Edit the summary and description in separate fields with a 72-character summary counter.
+- Copy the generated commit message to the clipboard.
+- Regenerate a message for the same selected files.
+- Commit selected files, push pending commits, or commit and push in one flow.
+- Undo the last local commit with a soft reset that keeps changes staged.
+- See file counts, line additions/removals, model used, risk level, pending pushes, and session history.
 
 ## Requirements
 
-- VS Code **1.96** or later
-- A free or paid [OpenRouter](https://openrouter.ai) account — API key stored in VS Code `SecretStorage`, never in settings files
+- VS Code 1.96 or later
+- A Git repository opened in VS Code
+- An [OpenRouter](https://openrouter.ai) API key
 
----
-
-## Installation
-
-Install from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=CommitCraftAISmartGitCommits.commitcraft-ai-smart-git-commits), or search **CommitCraft AI** inside VS Code (`Ctrl+Shift+P` → _Extensions: Install Extensions_).
-
----
+Your API key is stored in VS Code `SecretStorage`. It is not written to settings files and is not included in prompts.
 
 ## Quick Start
 
-1. Open a Git repository in VS Code and make some changes.
-2. Run **CommitCraft: Open Commit Assistant** from the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`), click the ✦ button in the Source Control title bar, or click **CommitCraft** in the status bar.
-3. If prompted, paste your OpenRouter API key.
-4. Review the file list — deselect anything you don't want included.
-5. Click **Generate Message →**.
-6. Edit the summary or description if needed.
-7. Click **Commit**, **↑ Push**, or **Commit + Push** and confirm.
-
----
-
-## Features
-
-|                                |                                                                                                                               |
-| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
-| **Single-command workflow**    | One entry point: Command Palette, Source Control button, or status bar.                                                       |
-| **File selection**             | Review and choose which safe files are sent to OpenRouter before anything is generated.                                       |
-| **Staged-first**               | Uses staged changes when they exist; falls back to safe unstaged and untracked files otherwise.                               |
-| **Change stats strip**         | Files changed, lines added, and lines removed — visible at a glance.                                                          |
-| **Excluded file transparency** | Lists excluded files with the reason: secret-like, lockfile, binary/generated asset, or too large.                            |
-| **Editable message**           | Generates a structured summary + multi-line description you can revise before committing.                                     |
-| **Commit type + risk badge**   | Shows the detected conventional commit type and a risk level (low / medium / high).                                           |
-| **Activity timeline**          | Tracks every commit, push, and undo performed during the session.                                                             |
-| **Undo commit**                | Soft-resets the last local commit and keeps changes staged for revision.                                                      |
-| **Pending push banner**        | Shows when unpushed local commits exist and offers a direct push action.                                                      |
-| **Multi-root workspace**       | Prefers the workspace folder that contains the active editor.                                                                 |
-| **Safe by default**            | `.env`, secret-like paths, key/certificate files, lockfiles, binary assets, and oversized files are excluded from the prompt. |
-
----
+1. Open a Git repository in VS Code.
+2. Make or stage changes.
+3. Open **CommitCraft: Open Commit Assistant** from the Command Palette, the Source Control title bar, or the **CommitCraft** status bar item.
+4. Add your OpenRouter API key when prompted.
+5. Review the safe changed files and deselect anything you do not want summarized.
+6. Select **Generate Message**.
+7. Edit the generated summary or description if needed.
+8. Select **Commit**, **Push**, or **Commit + Push**.
 
 ## Commands
 
 | Command                                   | Purpose                                                                |
 | ----------------------------------------- | ---------------------------------------------------------------------- |
-| `CommitCraft: Open Commit Assistant`      | Primary workflow — review files, generate a message, commit, and push. |
+| `CommitCraft: Open Commit Assistant`      | Main workflow for review, generation, commit, push, and undo actions.  |
 | `CommitCraft: Set OpenRouter API Token`   | Save or replace your OpenRouter API key in VS Code `SecretStorage`.    |
-| `CommitCraft: Clear OpenRouter API Token` | Remove the saved API key.                                              |
-
----
+| `CommitCraft: Clear OpenRouter API Token` | Delete the saved OpenRouter API key from VS Code `SecretStorage`.      |
+| `CommitCraft: Generate Smart Git Commit`  | Legacy alias hidden from the Command Palette; routes to the assistant. |
 
 ## Settings
 
-| Setting                             | Default           | Description                                                         |
-| ----------------------------------- | ----------------- | ------------------------------------------------------------------- |
-| `commitCraft.openRouterModel`       | `openrouter/auto` | Primary model for message generation.                               |
-| `commitCraft.fallbackModel`         | `openrouter/free` | Fallback model used when the primary fails.                         |
-| `commitCraft.maxDiffCharacters`     | `60000`           | Max diff characters sent to OpenRouter. Larger diffs are truncated. |
-| `commitCraft.includeUntrackedFiles` | `true`            | Include safe untracked text files when nothing is staged.           |
+| Setting                              | Default           | Description                                                                  |
+| ------------------------------------ | ----------------- | ---------------------------------------------------------------------------- |
+| `commitCraft.openRouterModel`        | `openrouter/auto` | Primary OpenRouter model for commit message generation.                      |
+| `commitCraft.fallbackModel`          | `openrouter/free` | Fallback model used when the primary model fails with a retryable error.     |
+| `commitCraft.maxDiffCharacters`      | `60000`           | Maximum diff characters sent to OpenRouter. Valid range: `1000`-`200000`.    |
+| `commitCraft.includeUntrackedFiles`  | `true`            | Include safe untracked text files when there are no staged changes.          |
+| `commitCraft.skipCommitConfirmation` | `false`           | Skip the extra commit confirmation dialog after reviewing the panel content. |
+
+Example:
 
 ```json
 {
   "commitCraft.openRouterModel": "openrouter/auto",
   "commitCraft.fallbackModel": "openrouter/free",
   "commitCraft.maxDiffCharacters": 60000,
-  "commitCraft.includeUntrackedFiles": true
+  "commitCraft.includeUntrackedFiles": true,
+  "commitCraft.skipCommitConfirmation": false
 }
 ```
 
----
+## How File Selection Works
 
-## Commit Message Format
+CommitCraft prefers staged changes. If staged changes exist, only staged files are considered. If nothing is staged, it can summarize safe unstaged and untracked text files.
 
-CommitCraft requests structured JSON from OpenRouter and renders it as an editable commit message following the [Conventional Commits](https://www.conventionalcommits.org) spec:
+Before generation, the assistant shows:
 
-```
+- Files that can be summarized
+- Files excluded from the prompt
+- The exclusion reason
+- Change statistics for the current diff
+
+Excluded file categories include:
+
+- `.env` files and secret-like paths
+- Certificate and key files
+- Lockfiles
+- Binary and generated assets
+- Oversized files
+- Symlinks and unsupported untracked file types
+
+## Generated Message Format
+
+CommitCraft asks OpenRouter for structured JSON and renders it as an editable conventional commit:
+
+```text
 <type>(<scope>): <short summary>
 
 <description>
 ```
 
-Supported types: `feat` `fix` `docs` `refactor` `test` `chore` `build` `ci` `style` `perf` `revert`
+Supported commit types:
 
----
+```text
+feat fix docs refactor test chore build ci style perf revert
+```
+
+If a model returns malformed JSON or an unsupported commit type, CommitCraft falls back to a safe editable message and shows a recovery warning in the panel.
 
 ## Safety & Privacy
 
-- API keys are stored **only** in VS Code `SecretStorage` and never written to settings files or sent in prompts.
-- API keys are redacted from surfaced error messages.
-- `.env`, secret-like paths, certificate/key files, lockfiles, binary/generated assets, and oversized files are excluded from prompt context automatically.
-- Excluded files are visible in the assistant before generation — nothing is hidden.
-- Staged changes are preferred. When staged changes exist, unstaged and untracked files are not included.
-- Every commit and push action requires explicit confirmation.
-- Push is disabled when the repository has no remote or is in a detached HEAD state.
+- OpenRouter API keys are stored only in VS Code `SecretStorage`.
+- API keys are never sent in prompts and are redacted from surfaced OpenRouter errors.
+- The panel shows the exact safe files available for prompt context before generation.
+- Ignored, binary, oversized, secret-like, symlinked, and unsupported untracked files are excluded.
+- Commit and push actions require an explicit user click.
+- Push is disabled for detached HEAD or repositories without a remote.
+- Undo uses `git reset --soft HEAD~1`, keeping changes staged for revision.
 
----
+## Development
 
-## Architecture
-
+```bash
+npm install
+npm run compile
+npm run lint
+npm run format:check
+npm test
+npm run test:coverage
+npm run package
 ```
+
+The package command builds the extension and creates a `.vsix` file for local install or marketplace publishing.
+
+## Project Layout
+
+```text
 src/
   extension.ts
   commands/
-    generateCommitMessage.ts   ← main workflow
+    generateCommitMessage.ts
     setOpenRouterToken.ts
     clearOpenRouterToken.ts
     workspaceResolver.ts
@@ -151,42 +162,24 @@ src/
     vscodeSettings.ts
   git/
     changeStats.ts
-    diffCollector.ts           ← diff collection, safety filtering
-    gitService.ts              ← commit, push, undo, status
+    diffCollector.ts
+    gitService.ts
   openrouter/
     commitPrompt.ts
-    openRouterClient.ts        ← API calls, timeout, fallback
-    responseParser.ts          ← JSON validation, plain-text recovery
+    openRouterClient.ts
+    responseParser.ts
   ui/
-    commitAssistantHtml.ts     ← webview HTML renderer
-    commitReviewPanel.ts       ← panel lifecycle and message routing
+    commitAssistantHtml.ts
+    commitReviewPanel.ts
     notifications.ts
 ```
 
----
-
-## Development
-
-```bash
-npm install
-npm run compile      # type-check + build → dist/
-npm test             # Vitest unit tests
-npm run lint         # ESLint
-npm run format       # Prettier
-npm run vscode:test  # VS Code extension-host integration tests
-npm run package      # produces .vsix
-```
-
----
-
 ## Non-Goals
 
-- Autonomous commits or pushes without user confirmation.
-- Rewriting or modifying user code.
-- Replacing pull request descriptions.
-- Managing GitHub/GitLab-specific workflows.
-
----
+- Autonomous commits or pushes
+- Sending whole repositories to an AI model
+- Editing your source files
+- Replacing pull request descriptions or release notes
 
 ## License
 

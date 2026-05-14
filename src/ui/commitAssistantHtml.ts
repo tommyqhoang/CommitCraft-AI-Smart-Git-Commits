@@ -186,17 +186,17 @@ const CSS = `
 
   /* File list — selectable (preview view) */
   .file-list { display: flex; flex-direction: column; }
-  label.file-row {
-    display: flex;
+  div.file-row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
     align-items: center;
     gap: 10px;
     padding: 7px 14px;
-    cursor: pointer;
     border-bottom: 1px solid var(--cc-border);
     transition: background 0.1s;
   }
-  label.file-row:last-child { border-bottom: 0; }
-  label.file-row:hover { background: rgba(0,127,212,0.05); }
+  div.file-row:last-child { border-bottom: 0; }
+  div.file-row:hover { background: rgba(0,127,212,0.05); }
   .file-checkbox {
     width: 13px;
     height: 13px;
@@ -204,14 +204,6 @@ const CSS = `
     flex-shrink: 0;
     accent-color: var(--cc-accent);
     cursor: pointer;
-  }
-  .file-name {
-    flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-family: var(--vscode-editor-font-family);
-    font-size: 12px;
   }
   .file-open-btn {
     flex: 1;
@@ -621,7 +613,7 @@ function renderPreviewView(data: CommitAssistantData, pushTitle: string): string
       const statsHtml = stat
         ? `<span class="file-stat added">+${stat.added}</span><span class="file-stat removed">-${stat.removed}</span>`
         : "";
-      return `<label class="file-row"><input class="file-checkbox" type="checkbox" name="file" value="${escapeHtml(file)}" checked><button class="file-open-btn" data-path="${escapeHtml(file)}" title="Open ${escapeHtml(file)}" type="button">${escapeHtml(file)}</button>${statsHtml}</label>`;
+      return `<div class="file-row"><input class="file-checkbox" type="checkbox" name="file" value="${escapeHtml(file)}" aria-label="Include ${escapeHtml(file)}" checked><button class="file-open-btn" data-path="${escapeHtml(file)}" title="Open ${escapeHtml(file)}" type="button">${escapeHtml(file)}</button>${statsHtml}</div>`;
     })
     .join("");
 

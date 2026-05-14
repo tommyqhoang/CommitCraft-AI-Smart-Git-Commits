@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { execFile } from "node:child_process";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -159,6 +159,34 @@ describe("diff safety helpers", () => {
       expect(context.diff).toContain("new-file.txt");
       expect(context.diff).toContain("+content");
     } finally {
+      await rm(repoPath, { recursive: true, force: true });
+    }
+  });
+
+  it("excludes untracked symlinks instead of following them into prompt context", async () => {
+    const repoPath = await createGitRepo();
+    const externalPath = path.join(
+      await mkdtemp(path.join(tmpdir(), "ai-commit-secret-")),
+      "secret.txt"
+    );
+
+    try {
+      await writeFile(externalPath, "OPENROUTER_API_KEY=outside-workspace\n");
+      await symlink(externalPath, path.join(repoPath, "linked-secret.txt"));
+
+      const context = await collectDiffContext(repoPath, {
+        includeUntrackedFiles: true,
+        maxDiffCharacters: 60_000
+      });
+
+      expect(context.files).not.toContain("linked-secret.txt");
+      expect(context.diff).not.toContain("OPENROUTER_API_KEY");
+      expect(context.excludedFiles).toContainEqual({
+        path: "linked-secret.txt",
+        reason: "unsupported file type"
+      });
+    } finally {
+      await rm(path.dirname(externalPath), { recursive: true, force: true });
       await rm(repoPath, { recursive: true, force: true });
     }
   });

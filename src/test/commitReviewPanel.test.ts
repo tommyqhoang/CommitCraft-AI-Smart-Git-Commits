@@ -59,6 +59,7 @@ describe("renderCommitAssistantHtml", () => {
 
     expect(html).toContain('class="file-list"');
     expect(html).toContain('class="file-checkbox"');
+    expect(html).toContain('aria-label="Include src/a.ts"');
     expect(html).toContain('class="file-open-btn"');
   });
 
