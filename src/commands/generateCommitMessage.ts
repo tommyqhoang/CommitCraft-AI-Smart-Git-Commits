@@ -190,7 +190,8 @@ export async function generateCommitMessage(
                   workspacePath,
                   message,
                   getGeneratedFiles(generatedDiffContext),
-                  currentHasStagedChanges
+                  currentHasStagedChanges,
+                  settings.skipCommitConfirmation
                 );
                 if (!committed) {
                   return undefined;
@@ -256,7 +257,8 @@ export async function generateCommitMessage(
                   workspacePath,
                   message,
                   getGeneratedFiles(generatedDiffContext),
-                  currentHasStagedChanges
+                  currentHasStagedChanges,
+                  settings.skipCommitConfirmation
                 );
                 if (!committed) {
                   return undefined;
@@ -488,20 +490,22 @@ async function commitReviewedMessage(
   workspacePath: string,
   message: string,
   files: string[],
-  hasStagedChanges: boolean
+  hasStagedChanges: boolean,
+  skipConfirmation: boolean
 ): Promise<boolean> {
   const normalized = message.trim();
   if (normalized.length === 0) {
     throw new UserInputError("Commit message cannot be empty.");
   }
 
-  const action = hasStagedChanges ? "Commit Staged Changes" : "Stage and Commit";
-  const prompt = hasStagedChanges
-    ? "Commit the currently staged changes with this message?"
-    : "Stage the reviewed safe files and commit them with this message?";
-
-  if (!(await confirmAction(prompt, action))) {
-    return false;
+  if (!skipConfirmation) {
+    const action = hasStagedChanges ? "Commit Staged Changes" : "Stage and Commit";
+    const prompt = hasStagedChanges
+      ? "Commit the currently staged changes with this message?"
+      : "Stage the reviewed safe files and commit them with this message?";
+    if (!(await confirmAction(prompt, action))) {
+      return false;
+    }
   }
 
   await gitService.commit({

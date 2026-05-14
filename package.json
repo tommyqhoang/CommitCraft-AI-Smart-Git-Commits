@@ -2,7 +2,7 @@
   "name": "commitcraft-ai-smart-git-commits",
   "displayName": "CommitCraft AI: Smart Git Commits",
   "description": "AI-powered Git commit messages from your local changes. Review files, generate a structured message via OpenRouter, then commit, push, or undo — always with your confirmation.",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "publisher": "CommitCraftAISmartGitCommits",
   "icon": "assets/icon.png",
   "galleryBanner": {
@@ -90,6 +90,11 @@
           "type": "boolean",
           "default": true,
           "description": "Include safe untracked text files in CommitCraft prompt context."
+        },
+        "commitCraft.skipCommitConfirmation": {
+          "type": "boolean",
+          "default": false,
+          "description": "Skip the confirmation dialog when committing. The panel itself serves as review."
         }
       }
     },
@@ -115,12 +120,14 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
     "vscode:test": "npm run compile && node ./dist/test/runTest.js",
     "package": "npm run compile && npm run lint && npm run format:check && vsce package --no-dependencies"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
+    "@vitest/coverage-v8": "^4.1.6",
     "@types/vscode": "^1.96.0",
     "@typescript-eslint/eslint-plugin": "^8.18.1",
     "@typescript-eslint/parser": "^8.18.1",

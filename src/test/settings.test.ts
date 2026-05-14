@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { readSettingsFromConfig } from "../config/settings";
+import { readSettingsFromConfig, type ConfigReader } from "../config/settings";
 
 describe("readSettingsFromConfig", () => {
   it("uses documented defaults when settings are absent", () => {
@@ -12,8 +12,23 @@ describe("readSettingsFromConfig", () => {
       openRouterModel: "openrouter/auto",
       fallbackModel: "openrouter/free",
       maxDiffCharacters: 60000,
-      includeUntrackedFiles: true
+      includeUntrackedFiles: true,
+      skipCommitConfirmation: false
     });
+  });
+
+  it("skipCommitConfirmation defaults to false", () => {
+    const config: ConfigReader = { get: vi.fn().mockReturnValue(undefined) };
+    const settings = readSettingsFromConfig(config);
+    expect(settings.skipCommitConfirmation).toBe(false);
+  });
+
+  it("skipCommitConfirmation reads true from config", () => {
+    const config: ConfigReader = {
+      get: vi.fn((key: string) => (key === "skipCommitConfirmation" ? true : undefined))
+    };
+    const settings = readSettingsFromConfig(config);
+    expect(settings.skipCommitConfirmation).toBe(true);
   });
 
   it("normalizes blank models and clamps the diff limit", () => {

@@ -39,7 +39,8 @@ vi.mock("../config/vscodeSettings", () => ({
     openRouterModel: "openai/gpt-4o",
     fallbackModel: "openai/gpt-4o-mini",
     includeUntrackedFiles: false,
-    maxDiffCharacters: 60_000
+    maxDiffCharacters: 60_000,
+    skipCommitConfirmation: false
   }))
 }));
 
@@ -457,6 +458,105 @@ describe("generateCommitMessage", () => {
 
       const { handlers } = await runAndCaptureHandlers(makeGitService());
       await expect(handlers.reviewChanges()).rejects.toBeInstanceOf(UserInputError);
+    });
+  });
+
+  // ── skipCommitConfirmation ────────────────────────────────────────────────
+
+  describe("skipCommitConfirmation setting", () => {
+    it("commits without a confirmation modal when skipCommitConfirmation is true", async () => {
+      const { getAiCommitSettings } = await import("../config/vscodeSettings");
+      vi.mocked(getAiCommitSettings).mockReturnValueOnce({
+        openRouterModel: "openai/gpt-4o",
+        fallbackModel: "openai/gpt-4o-mini",
+        includeUntrackedFiles: false,
+        maxDiffCharacters: 60_000,
+        skipCommitConfirmation: true
+      });
+
+      const gitService = makeGitService();
+      const openRouterClient = makeOpenRouterClient();
+      const { handlers } = await runAndCaptureHandlers(gitService, openRouterClient);
+
+      // Generate first so generatedDiffContext is set
+      await handlers.generate(["src/a.ts"]);
+      vi.mocked(vscode.window.showWarningMessage).mockClear();
+
+      await handlers.commit("fix: something");
+
+      // showWarningMessage (confirmation modal) must NOT have been called
+      expect(vscode.window.showWarningMessage).not.toHaveBeenCalled();
+      expect(gitService.commit).toHaveBeenCalledWith(
+        expect.objectContaining({ message: "fix: something" })
+      );
+    });
+
+    it("shows confirmation modal when skipCommitConfirmation is false (default)", async () => {
+      vscode.window.showWarningMessage = vi.fn().mockResolvedValue("Stage and Commit");
+      const gitService = makeGitService();
+      const openRouterClient = makeOpenRouterClient();
+      const { handlers } = await runAndCaptureHandlers(gitService, openRouterClient);
+
+      await handlers.generate(["src/a.ts"]);
+      await handlers.commit("fix: something");
+
+      expect(vscode.window.showWarningMessage).toHaveBeenCalled();
+    });
+  });
+
+  // ── network error classification ──────────────────────────────────────────
+
+  describe("network error classification in generate handler", () => {
+    it("classifies timeout errors", async () => {
+      const openRouterClient = makeOpenRouterClient({
+        generateCommitMessage: vi.fn().mockRejectedValue(new Error("request timed out after 30s"))
+      });
+      const { handlers } = await runAndCaptureHandlers(makeGitService(), openRouterClient);
+      await expect(handlers.generate(["src/a.ts"])).rejects.toMatchObject({
+        userMessage: expect.stringContaining("timed out")
+      });
+    });
+
+    it("classifies 401 auth errors", async () => {
+      const openRouterClient = makeOpenRouterClient({
+        generateCommitMessage: vi.fn().mockRejectedValue(new Error("401 unauthorized"))
+      });
+      const { handlers } = await runAndCaptureHandlers(makeGitService(), openRouterClient);
+      await expect(handlers.generate(["src/a.ts"])).rejects.toMatchObject({
+        userMessage: expect.stringContaining("Invalid API key")
+      });
+    });
+
+    it("classifies 429 rate limit errors", async () => {
+      const openRouterClient = makeOpenRouterClient({
+        generateCommitMessage: vi.fn().mockRejectedValue(new Error("429 rate limit exceeded"))
+      });
+      const { handlers } = await runAndCaptureHandlers(makeGitService(), openRouterClient);
+      await expect(handlers.generate(["src/a.ts"])).rejects.toMatchObject({
+        userMessage: expect.stringContaining("Rate limit")
+      });
+    });
+
+    it("classifies 500 server errors", async () => {
+      const openRouterClient = makeOpenRouterClient({
+        generateCommitMessage: vi
+          .fn()
+          .mockRejectedValue(new Error("500 internal server error"))
+      });
+      const { handlers } = await runAndCaptureHandlers(makeGitService(), openRouterClient);
+      await expect(handlers.generate(["src/a.ts"])).rejects.toMatchObject({
+        userMessage: expect.stringContaining("temporarily unavailable")
+      });
+    });
+
+    it("passes through NetworkError unchanged", async () => {
+      const original = new NetworkError("user message", "raw internal");
+      const openRouterClient = makeOpenRouterClient({
+        generateCommitMessage: vi.fn().mockRejectedValue(original)
+      });
+      const { handlers } = await runAndCaptureHandlers(makeGitService(), openRouterClient);
+      // classifyNetworkError returns the original NetworkError instance unchanged
+      await expect(handlers.generate(["src/a.ts"])).rejects.toBe(original);
     });
   });
 });

@@ -3,6 +3,7 @@ export interface AiCommitSettings {
   fallbackModel: string;
   maxDiffCharacters: number;
   includeUntrackedFiles: boolean;
+  skipCommitConfirmation: boolean;
 }
 
 export interface ConfigReader {
@@ -16,7 +17,8 @@ export function readSettingsFromConfig(config: ConfigReader): AiCommitSettings {
     openRouterModel: readNonEmptyString(config, "openRouterModel", "openrouter/auto"),
     fallbackModel: readNonEmptyString(config, "fallbackModel", "openrouter/free"),
     maxDiffCharacters: readDiffLimit(config),
-    includeUntrackedFiles: config.get<boolean>("includeUntrackedFiles") ?? true
+    includeUntrackedFiles: config.get<boolean>("includeUntrackedFiles") ?? true,
+    skipCommitConfirmation: config.get<boolean>("skipCommitConfirmation") ?? false
   };
 }
 
