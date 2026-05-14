@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto";
+import path from "node:path";
 
 import * as vscode from "vscode";
 
@@ -17,7 +18,8 @@ export interface CommitReviewHandlers {
 
 export function showCommitReviewPanel(
   data: CommitReviewData,
-  handlers: CommitReviewHandlers
+  handlers: CommitReviewHandlers,
+  workspacePath: string
 ): vscode.WebviewPanel {
   const panel = vscode.window.createWebviewPanel(
     "commitCraft.review",
@@ -38,7 +40,7 @@ export function showCommitReviewPanel(
     }
 
     isActionInProgress = true;
-    void handleMessage(message, handlers, panel).finally(() => {
+    void handleMessage(message, handlers, panel, workspacePath).finally(() => {
       isActionInProgress = false;
     });
   });
@@ -49,7 +51,8 @@ export function showCommitReviewPanel(
 async function handleMessage(
   message: unknown,
   handlers: CommitReviewHandlers,
-  panel: vscode.WebviewPanel
+  panel: vscode.WebviewPanel,
+  workspacePath: string
 ): Promise<void> {
   if (!isWebviewMessage(message)) {
     return;
@@ -70,13 +73,17 @@ async function handleMessage(
     } else if (message.command === "reviewChanges") {
       updatePanelIfChanged(panel, await handlers.reviewChanges());
     } else if (message.command === "openFile" && message.path) {
-      const uri = vscode.Uri.joinPath(
-        vscode.workspace.workspaceFolders?.[0]?.uri ?? vscode.Uri.file(""),
-        message.path
-      );
-      void vscode.workspace.openTextDocument(uri).then((doc) =>
-        vscode.window.showTextDocument(doc, { preview: false, preserveFocus: true })
-      );
+      const resolvedBase = path.resolve(workspacePath);
+      const resolvedTarget = path.resolve(path.join(workspacePath, message.path));
+      if (
+        resolvedTarget !== resolvedBase &&
+        !resolvedTarget.startsWith(resolvedBase + path.sep)
+      ) {
+        throw new Error("Cannot open file outside the workspace.");
+      }
+      const uri = vscode.Uri.file(resolvedTarget);
+      const doc = await vscode.workspace.openTextDocument(uri);
+      await vscode.window.showTextDocument(doc, { preview: false, preserveFocus: true });
     }
   } catch (err) {
     const errorText = err instanceof Error ? err.message : String(err);

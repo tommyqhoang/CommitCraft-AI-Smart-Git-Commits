@@ -31,7 +31,7 @@ describe("parseCommitResponse", () => {
     expect(parsed.message.description).toBe("Use SecretStorage only.");
   });
 
-  it("recovers structured responses with an unsupported commit type", () => {
+  it("recovers structured responses with an unsupported commit type, preserving content", () => {
     const parsed = parseCommitResponse(
       JSON.stringify({
         summary: "oops: invent an unsupported type",
@@ -40,7 +40,8 @@ describe("parseCommitResponse", () => {
     );
 
     expect(parsed.recovered).toBe(true);
-    expect(parsed.message.summary).toBe("chore: update project");
+    expect(parsed.message.summary).toBe("chore: invent an unsupported type");
+    expect(parsed.message.description).toBe("Uses a type outside the documented commit convention.");
     expect(parsed.recoveryReason).toContain("unsupported commit type");
   });
 

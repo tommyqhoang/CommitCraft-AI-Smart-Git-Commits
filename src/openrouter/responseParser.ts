@@ -31,10 +31,15 @@ export function parseCommitResponse(content: string): ParsedCommitResponse {
 
   try {
     const parsed = JSON.parse(trimmed) as unknown;
-    return {
-      message: validateMessage(parsed),
-      recovered: false
-    };
+    const { message, typeCoerced } = validateMessage(parsed);
+    if (typeCoerced) {
+      return {
+        message,
+        recovered: true,
+        recoveryReason: "OpenRouter response used an unsupported commit type."
+      };
+    }
+    return { message, recovered: false };
   } catch (error) {
     const recovered = looksLikeJson(trimmed) ? fallbackMessage() : recoverPlainText(trimmed);
     return {
@@ -45,22 +50,22 @@ export function parseCommitResponse(content: string): ParsedCommitResponse {
   }
 }
 
-function validateMessage(value: unknown): GeneratedCommitMessage {
+function validateMessage(value: unknown): { message: GeneratedCommitMessage; typeCoerced: boolean } {
   if (!isRecord(value)) {
     throw new Error("OpenRouter response was not a JSON object.");
   }
 
-  const summary = normalizeSummary(readRequiredString(value, "summary"));
-  validateCommitType(summary);
+  const rawSummary = readRequiredString(value, "summary");
+  const { summary: coerced, typeCoerced } = coerceCommitType(rawSummary);
+  const summary = normalizeSummary(coerced);
   const description = readOptionalString(value, "description");
   const riskLevelValue = readOptionalString(value, "riskLevel") || "low";
   const riskLevel: RiskLevel = ["low", "medium", "high"].includes(riskLevelValue)
     ? (riskLevelValue as RiskLevel)
     : "low";
   return {
-    summary,
-    description,
-    riskLevel
+    message: { summary, description, riskLevel },
+    typeCoerced
   };
 }
 
@@ -110,11 +115,19 @@ function normalizeSummary(summary: string): string {
   return trimmed.length > 100 ? trimmed.slice(0, 97).trimEnd() + "..." : trimmed;
 }
 
-function validateCommitType(summary: string): void {
-  const type = /^([a-z]+)(?:\([^)]*\))?!?:\s+\S/.exec(summary)?.[1];
-  if (!type || !allowedCommitTypes.has(type)) {
-    throw new Error("OpenRouter response used an unsupported commit type.");
+function coerceCommitType(summary: string): { summary: string; typeCoerced: boolean } {
+  const match = /^([a-z]+)((?:\([^)]*\))?!?): /i.exec(summary);
+  if (!match) {
+    return { summary, typeCoerced: false };
   }
+  const [, type, scopeAndBreaking] = match;
+  if (allowedCommitTypes.has(type.toLowerCase())) {
+    return { summary, typeCoerced: false };
+  }
+  return {
+    summary: `chore${scopeAndBreaking}: ${summary.slice(match[0].length)}`,
+    typeCoerced: true
+  };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

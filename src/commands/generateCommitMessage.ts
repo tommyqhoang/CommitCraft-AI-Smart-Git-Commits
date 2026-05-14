@@ -171,12 +171,13 @@ export async function generateCommitMessage(
                 };
               },
               commit: async (message) => {
+                const currentHasStagedChanges = await gitService.hasStagedChanges(workspacePath);
                 const committed = await commitReviewedMessage(
                   gitService,
                   workspacePath,
                   message,
                   getGeneratedFiles(generatedDiffContext),
-                  hasStagedChanges
+                  currentHasStagedChanges
                 );
                 if (!committed) {
                   return undefined;
@@ -236,12 +237,13 @@ export async function generateCommitMessage(
                 };
               },
               commitAndPush: async (message) => {
+                const currentHasStagedChanges = await gitService.hasStagedChanges(workspacePath);
                 const committed = await commitReviewedMessage(
                   gitService,
                   workspacePath,
                   message,
                   getGeneratedFiles(generatedDiffContext),
-                  hasStagedChanges
+                  currentHasStagedChanges
                 );
                 if (!committed) {
                   return undefined;
@@ -346,11 +348,13 @@ export async function generateCommitMessage(
                     ? undefined
                     : nextPushReadiness.reason,
                   pendingPushCount,
+                  canReviewChanges: currentDiffContext.files.length > 0,
                   activityHistory,
                   recovered: false
                 };
               }
-            }
+            },
+            workspacePath
           );
           context.subscriptions.push(panel);
         } catch (error) {

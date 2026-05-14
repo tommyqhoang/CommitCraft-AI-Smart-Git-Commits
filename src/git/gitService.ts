@@ -29,7 +29,11 @@ export class GitService {
   }
 
   async commit(options: GitCommitOptions): Promise<void> {
-    if (options.stageFilesBeforeCommit && options.filesToStage.length > 0) {
+    if (options.filesToStage.length === 0) {
+      throw new Error("No files specified to commit.");
+    }
+
+    if (options.stageFilesBeforeCommit) {
       await this.git(options.workspacePath, ["add", "--", ...options.filesToStage]);
     }
 
