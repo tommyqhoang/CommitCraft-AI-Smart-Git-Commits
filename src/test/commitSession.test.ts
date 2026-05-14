@@ -296,7 +296,11 @@ describe("CommitSession", () => {
       const git = makeGitService({
         getPushReadiness: vi
           .fn()
-          .mockResolvedValue({ canPush: false, reason: "No remote configured.", branchName: "main" })
+          .mockResolvedValue({
+            canPush: false,
+            reason: "No remote configured.",
+            branchName: "main"
+          })
       });
       const session = makeSession({ gitService: git });
       const result = await session.push();
