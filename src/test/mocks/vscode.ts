@@ -21,9 +21,17 @@ const createWebviewPanel = () => ({
 });
 
 export const window = {
+  createStatusBarItem: vi.fn(() => ({
+    command: undefined,
+    text: "",
+    tooltip: "",
+    show: vi.fn(),
+    dispose: vi.fn()
+  })),
   showErrorMessage: vi.fn().mockResolvedValue(undefined),
   showInformationMessage: vi.fn().mockResolvedValue(undefined),
   showWarningMessage: vi.fn().mockResolvedValue(undefined),
+  showInputBox: vi.fn().mockResolvedValue(undefined),
   withProgress: vi.fn((_, task: (progress: unknown) => unknown) => task({ report: vi.fn() })),
   createWebviewPanel: vi.fn(createWebviewPanel),
   showTextDocument: vi.fn().mockResolvedValue(undefined),
@@ -47,6 +55,13 @@ export const StatusBarAlignment = { Left: 1, Right: 2 };
 export function resetVscodeMocks(): void {
   vi.clearAllMocks();
   window.createWebviewPanel.mockImplementation(createWebviewPanel);
+  window.createStatusBarItem.mockImplementation(() => ({
+    command: undefined,
+    text: "",
+    tooltip: "",
+    show: vi.fn(),
+    dispose: vi.fn()
+  }));
   window.showWarningMessage.mockResolvedValue(undefined);
   window.showErrorMessage.mockResolvedValue(undefined);
   window.showInformationMessage.mockResolvedValue(undefined);

@@ -67,6 +67,24 @@ describe("GitService", () => {
     }
   });
 
+  it("rejects commit requests without an explicit file list", async () => {
+    const repoPath = await createGitRepo();
+    const service = new GitService();
+
+    try {
+      await expect(
+        service.commit({
+          workspacePath: repoPath,
+          message: "chore: empty",
+          filesToStage: [],
+          stageFilesBeforeCommit: true
+        })
+      ).rejects.toThrow("No files specified to commit.");
+    } finally {
+      await rm(repoPath, { recursive: true, force: true });
+    }
+  });
+
   it("detects working tree changes and reports clean state after commit", async () => {
     const repoPath = await createGitRepo();
     const service = new GitService();
@@ -312,6 +330,28 @@ describe("GitService", () => {
       }
 
       await expect(service.getUnpushedCommitCount(repoPath)).resolves.toBe(3);
+    } finally {
+      await rm(repoPath, { recursive: true, force: true });
+      await rm(remotePath, { recursive: true, force: true });
+    }
+  });
+
+  it("counts against origin HEAD when no upstream branch is configured", async () => {
+    const { repoPath, remotePath } = await createGitRepoWithRemote();
+    const service = new GitService();
+
+    try {
+      await git(repoPath, ["remote", "set-head", "origin", "-a"]);
+      await git(repoPath, ["branch", "--unset-upstream"]);
+      await writeFile(path.join(repoPath, "local-only.txt"), "local\n");
+      await service.commit({
+        workspacePath: repoPath,
+        message: "feat: add local only file",
+        filesToStage: ["local-only.txt"],
+        stageFilesBeforeCommit: true
+      });
+
+      await expect(service.getUnpushedCommitCount(repoPath)).resolves.toBe(1);
     } finally {
       await rm(repoPath, { recursive: true, force: true });
       await rm(remotePath, { recursive: true, force: true });

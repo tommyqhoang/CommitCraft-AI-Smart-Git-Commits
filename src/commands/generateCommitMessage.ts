@@ -87,7 +87,9 @@ export async function generateCommitMessage(
           let generatedRecoveryReason: string | undefined;
           const activityHistory: ActivityHistoryItem[] = [];
 
-          const generateFromDiffContext = async (diffCtx: DiffContext): Promise<CommitReviewData> => {
+          const generateFromDiffContext = async (
+            diffCtx: DiffContext
+          ): Promise<CommitReviewData> => {
             const token = await getOrPromptForToken(context);
             if (!token) {
               throw new UserInputError("Add an OpenRouter API key to generate a commit message.");
@@ -146,7 +148,9 @@ export async function generateCommitMessage(
               recovered: parsed.recovered,
               recoveryReason: parsed.recoveryReason,
               canPush: freshPushReadiness.canPush,
-              pushDisabledReason: freshPushReadiness.canPush ? undefined : freshPushReadiness.reason,
+              pushDisabledReason: freshPushReadiness.canPush
+                ? undefined
+                : freshPushReadiness.reason,
               pendingPushCount: freshPendingPushCount,
               activityHistory
             };

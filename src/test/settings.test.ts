@@ -1,6 +1,6 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
-import { readSettingsFromConfig, type ConfigReader } from "../config/settings";
+import { readSettingsFromConfig } from "../config/settings";
 
 describe("readSettingsFromConfig", () => {
   it("uses documented defaults when settings are absent", () => {
@@ -25,7 +25,7 @@ describe("readSettingsFromConfig", () => {
   it("skipCommitConfirmation reads true from config", () => {
     const settings = readSettingsFromConfig({
       get: <T>(key: string): T | undefined =>
-        (key === "skipCommitConfirmation" ? (true as unknown as T) : undefined)
+        key === "skipCommitConfirmation" ? (true as unknown as T) : undefined
     });
     expect(settings.skipCommitConfirmation).toBe(true);
   });

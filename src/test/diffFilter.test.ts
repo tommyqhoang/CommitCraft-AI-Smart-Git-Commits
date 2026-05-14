@@ -6,7 +6,15 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 
-import { collectDiffContext, filterDiffContextToFiles, parseNumstat } from "../git/diffCollector";
+import {
+  collectDiffContext,
+  detectLanguageHints,
+  filterDiffContextToFiles,
+  getBranchName,
+  getExcludedFileReason,
+  getRepositoryName,
+  parseNumstat
+} from "../git/diffCollector";
 import { isSafeDiffFile, truncateDiff } from "../git/diffCollector";
 
 const execFileAsync = promisify(execFile);
@@ -15,9 +23,13 @@ describe("diff safety helpers", () => {
   it("rejects ignored secret, env, lock, and binary-like files", () => {
     expect(isSafeDiffFile("src/extension.ts")).toBe(true);
     expect(isSafeDiffFile(".env")).toBe(false);
+    expect(isSafeDiffFile("config\\.env.local")).toBe(false);
     expect(isSafeDiffFile("secrets/openrouter-token.txt")).toBe(false);
+    expect(isSafeDiffFile("private/token.value")).toBe(false);
+    expect(isSafeDiffFile("certs/client.pem")).toBe(false);
     expect(isSafeDiffFile("assets/icon.png")).toBe(false);
     expect(isSafeDiffFile("package-lock.json")).toBe(false);
+    expect(getExcludedFileReason("src/extension.ts")).toBeUndefined();
   });
 
   it("parses git numstat output into per-file added/removed counts", () => {
@@ -43,6 +55,18 @@ describe("diff safety helpers", () => {
     expect(truncated.truncated).toBe(true);
     expect(truncated.diff).toContain("abc");
     expect(truncated.diff).toContain("[diff truncated");
+  });
+
+  it("returns unchanged diffs that fit within the limit", () => {
+    const result = truncateDiff("abc", 3);
+
+    expect(result).toEqual({ diff: "abc", truncated: false });
+  });
+
+  it("detects up to six language hints from changed file extensions", async () => {
+    await expect(
+      detectLanguageHints(["a.ts", "b.tsx", "c.js", "d.py", "e.go", "f.rs", "g.java", "README"])
+    ).resolves.toEqual(["TypeScript", "JavaScript", "Python", "Go", "Rust", "Java"]);
   });
 
   it("uses only staged files and stats when staged changes exist", async () => {
@@ -119,6 +143,44 @@ describe("diff safety helpers", () => {
     }
   });
 
+  it("collects safe untracked text files when requested", async () => {
+    const repoPath = await createGitRepo();
+
+    try {
+      await writeFile(path.join(repoPath, "new-file.txt"), "new\ncontent\n");
+
+      const context = await collectDiffContext(repoPath, {
+        includeUntrackedFiles: true,
+        maxDiffCharacters: 60_000
+      });
+
+      expect(context.diffSource).toBe("unstaged");
+      expect(context.files).toContain("new-file.txt");
+      expect(context.diff).toContain("new-file.txt");
+      expect(context.diff).toContain("+content");
+    } finally {
+      await rm(repoPath, { recursive: true, force: true });
+    }
+  });
+
+  it("omits untracked files when includeUntrackedFiles is false", async () => {
+    const repoPath = await createGitRepo();
+
+    try {
+      await writeFile(path.join(repoPath, "new-file.txt"), "new\n");
+
+      const context = await collectDiffContext(repoPath, {
+        includeUntrackedFiles: false,
+        maxDiffCharacters: 60_000
+      });
+
+      expect(context.files).not.toContain("new-file.txt");
+      expect(context.diff).not.toContain("new-file.txt");
+    } finally {
+      await rm(repoPath, { recursive: true, force: true });
+    }
+  });
+
   it("can narrow a collected diff context to selected files", async () => {
     const repoPath = await createGitRepo();
 
@@ -140,6 +202,30 @@ describe("diff safety helpers", () => {
         linesAdded: 1,
         linesRemoved: 0
       });
+    } finally {
+      await rm(repoPath, { recursive: true, force: true });
+    }
+  });
+
+  it("returns fallback repository metadata outside a git repo", async () => {
+    const tempPath = await mkdtemp(path.join(tmpdir(), "ai-commit-no-git-"));
+
+    try {
+      await expect(getRepositoryName(tempPath)).resolves.toBe(path.basename(tempPath));
+      await expect(getBranchName(tempPath)).resolves.toBe("unknown");
+    } finally {
+      await rm(tempPath, { recursive: true, force: true });
+    }
+  });
+
+  it("reports detached HEAD when the branch name is empty", async () => {
+    const repoPath = await createGitRepo();
+
+    try {
+      const hash = (await git(repoPath, ["rev-parse", "HEAD"])).trim();
+      await git(repoPath, ["checkout", "--detach", hash]);
+
+      await expect(getBranchName(repoPath)).resolves.toBe("detached HEAD");
     } finally {
       await rm(repoPath, { recursive: true, force: true });
     }

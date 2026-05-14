@@ -183,6 +183,20 @@ describe("generateCommitMessage", () => {
       expect(initialData.pendingPushCount).toBe(2);
     });
 
+    it("opens a pendingPush-only panel when there are unpushed commits and no worktree changes", async () => {
+      const git = makeGitService({
+        hasChanges: vi.fn().mockResolvedValue(false),
+        getUnpushedCommitCount: vi.fn().mockResolvedValue(1)
+      });
+
+      const { initialData } = await runAndCaptureHandlers(git);
+
+      expect(diffCollector.collectDiffContext).not.toHaveBeenCalled();
+      expect(initialData.diffContext.files).toEqual([]);
+      expect(initialData.commitState?.status).toBe("pendingPush");
+      expect(initialData.canReviewChanges).toBe(false);
+    });
+
     it("reflects canPush:false from getPushReadiness in initial data", async () => {
       const git = makeGitService({
         getPushReadiness: vi.fn().mockResolvedValue({
@@ -313,6 +327,18 @@ describe("generateCommitMessage", () => {
       const { handlers } = await runAndCaptureHandlers(makeGitService());
       const result = await handlers.push();
       expect(result?.commitState?.status).toBe("pushed");
+    });
+
+    it("uses origin in push activity when readiness does not include a remote name", async () => {
+      vscode.window.showWarningMessage = vi.fn().mockResolvedValue("Push");
+      const git = makeGitService({
+        getPushReadiness: vi.fn().mockResolvedValue({ canPush: true, branchName: "feature/test" })
+      });
+
+      const { handlers } = await runAndCaptureHandlers(git);
+      const result = await handlers.push();
+
+      expect(result?.activityHistory?.[0]?.detail).toBe("feature/test to origin");
     });
 
     it("propagates GitOperationError with friendly message on push rejection", async () => {
@@ -539,9 +565,7 @@ describe("generateCommitMessage", () => {
 
     it("classifies 500 server errors", async () => {
       const openRouterClient = makeOpenRouterClient({
-        generateCommitMessage: vi
-          .fn()
-          .mockRejectedValue(new Error("500 internal server error"))
+        generateCommitMessage: vi.fn().mockRejectedValue(new Error("500 internal server error"))
       });
       const { handlers } = await runAndCaptureHandlers(makeGitService(), openRouterClient);
       await expect(handlers.generate(["src/a.ts"])).rejects.toMatchObject({
@@ -557,6 +581,17 @@ describe("generateCommitMessage", () => {
       const { handlers } = await runAndCaptureHandlers(makeGitService(), openRouterClient);
       // classifyNetworkError returns the original NetworkError instance unchanged
       await expect(handlers.generate(["src/a.ts"])).rejects.toBe(original);
+    });
+
+    it("wraps generic API errors in a NetworkError with the original message", async () => {
+      const openRouterClient = makeOpenRouterClient({
+        generateCommitMessage: vi.fn().mockRejectedValue("socket closed")
+      });
+      const { handlers } = await runAndCaptureHandlers(makeGitService(), openRouterClient);
+
+      await expect(handlers.generate(["src/a.ts"])).rejects.toMatchObject({
+        userMessage: "socket closed"
+      });
     });
   });
 

@@ -151,8 +151,9 @@ export class GitService {
 }
 
 function classifyPushError(error: unknown): GitOperationError {
-  const stderr = ((error as { stderr?: string }).stderr ?? "").toLowerCase();
   const message = error instanceof Error ? error.message : String(error);
+  const stderrText = (error as { stderr?: string }).stderr ?? message;
+  const stderr = stderrText.toLowerCase();
 
   if (/rejected|non-fast-forward|would overwrite/.test(stderr)) {
     return new GitOperationError(
@@ -167,7 +168,7 @@ function classifyPushError(error: unknown): GitOperationError {
     return new GitOperationError("Could not reach remote. Check your network connection.", message);
   }
 
-  const cleaned = (error as { stderr?: string }).stderr
+  const cleaned = stderrText
     ?.replace(/^error:\s*/gim, "")
     .replace(/^fatal:\s*/gim, "")
     .replace(/^hint:.*$/gim, "")

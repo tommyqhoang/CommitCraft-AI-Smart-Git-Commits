@@ -56,71 +56,83 @@ Store OpenRouter API tokens only in VS Code `SecretStorage`. Never log tokens or
 <claude-mem-context>
 # Memory Context
 
-# [ai-commit] recent context, 2026-05-13 8:03am CDT
+# [ai-commit] recent context, 2026-05-13 10:45pm CDT
 
 Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision 🚨security_alert 🔐security_note
 Format: ID TIME TYPE TITLE
 Fetch details: get_observations([IDs]) | Search: mem-search skill
 
-Stats: 50 obs (9,941t read) | 581,668t work | 98% savings
-
-### May 12, 2026
-
-S85 Publisher ID mismatch resolution for VS Code Marketplace extension publication (May 12 at 11:22 PM)
-S86 Fix missing icon and conditional button rendering in VS Code extension (May 12 at 11:39 PM)
+Stats: 50 obs (10,004t read) | 652,310t work | 98% savings
 
 ### May 13, 2026
 
-1839 7:22a ✅ Extracted maxDiffCharacters logic into readDiffLimit helper
-1841 " ✅ Added configurable timeout to OpenRouterClient
-1844 7:23a ✅ Fixed test timing issue in openRouterClient.test.ts
-1861 7:31a 🟣 UI Enhancements for Commitcraft
-1862 " 🔄 UI Line Styling Improvements
-1863 " 🟣 Enhanced Commit Assistant UI
-1864 " 🔴 Missing UI Class Implementations
-1865 7:32a 🔄 Commit Assistant UI Overhaul
-1866 7:33a 🔄 Code Formatting Applied
-1867 " 🔴 VS Code Extension Tests Executed
-1869 7:38a 🟣 Commit view enhanced to show scrollable descriptions
-1870 " 🟣 Test added for separate summary and description fields in commit assistant
-1871 7:39a 🟣 Commit assistant UI split into separate summary and description fields
-1872 " ✅ Code formatted with Prettier
-1873 " 🔵 Formatting issues detected in AGENTS.md
-1874 7:42a 🔵 Systematic Debugging Methodology Documented
-1875 " 🟣 Tests added for committed state and undo commit functionality
-1876 " 🟣 GitService test added for undo commit functionality
-1877 7:44a 🔵 Mismatch between test expectations and current implementation
-1878 " 🔵 Committed state UI implementation with commit hash and undo functionality
-1879 7:45a 🟣 GitService implementation for commit state management
-1880 " 🔵 Test suite for commit review panel and GitService passes
-1881 " 🟣 Code formatting and linting applied to key files
-1885 7:46a 🔵 References to commit review panel and undo commit identified in codebase
-1886 " 🔵 CommitAssistantHtml source reveals UI rendering logic and undoCommit integration
-1888 7:48a 🔵 GitService implementation details
-1889 " 🔴 CommitReviewPanel test file analysis
-1890 7:49a 🔴 commitAssistantHtml.ts updates
-1891 7:50a 🔴 commitAssistantHtml.ts updates
-1892 " 🔴 generateCommitMessage.ts enhancements
-1893 7:51a 🔴 commitReviewPanel.test.ts updates
-1894 " 🔴 commitAssistantHtml.ts updates: pending push panel and button
-1895 7:52a 🔴 generateCommitMessage.ts patch applied
-1897 " 🔴 Test suite validation
-1898 7:53a 🔴 VS Code extension test suite passed
-1899 7:54a 🔴 SKILL.md content retrieved
-1900 " 🔴 commitAssistantHtml.ts UI refinement
-1901 " 🔴 Test Passage Confirmation
-1902 7:55a 🔴 Full test suite passed
-1903 " 🔴 Prettier formatting verification
-1904 " 🔴 Post-formatting test validation
-1905 " 🔴 VSIX package checksum verification
-1906 7:56a 🔴 CommitAssistant HTML rendering verification
-1907 7:57a 🔴 Test suite extension pending implementation
-1908 " 🔴 CommitAssistant UI Test Patch Verification
-1909 " 🔴 Post-patch test and compilation validation
-1910 7:58a 🔴 CommitAssistant UI Patch Validation
-1911 " 🔴 Full test suite validation after commit message generator patch
-1912 7:59a 🔴 VS Code extension integration test validation
-1913 8:02a 🟣 API Key Integration
+1979 2:44p ✅ feat: add undo button to preview view when commits are unpushed
+1980 6:31p 🟣 Developer Experience Enhancement Features
+S94 Update project logo and verify package.json configuration (May 13 at 6:32 PM)
+1981 6:34p 🔴 App store logo updated to new logo
+1982 6:49p 🟣 New Logo Implemented
+1983 " ✅ Logo Asset Replaced
+1984 6:50p 🔵 Package.json Icon Configuration Found
+S95 Run test suite to verify push-related functionality and identify any regressions after adding push edge case tests. (May 13 at 6:50 PM)
+1985 6:58p 🔵 No observable session activity detected
+1986 " 🔵 Audit-fix workflow definition documented
+1988 6:59p 🔵 Project structure mapped - 25 TypeScript source files identified
+1989 7:00p 🔵 Commit review panel UI implementation
+1990 " 🔵 Generate commit message command implementation
+1991 7:03p 🔴 Response parser test suite validates commit message recovery logic
+1992 7:04p 🔴 gitService commit method updated
+1993 7:05p 🔵 Commit message recovery logic enhanced
+1994 " 🔵 Commit review panel now accepts workspacePath parameter
+1995 8:57p 🔵 Current version and scripts baseline established
+1996 8:58p ✅ Version updated to 0.3.0 in package.json
+1997 9:08p 🔴 Push operation silent failure resolved
+1998 " 🔵 **Missing gitService.ts file during push reference search**
+1999 " 🔵 **Push implementation located in git/gitService.ts with readiness checks**
+2001 9:10p 🔵 Notification System Implementation
+2002 9:11p 🔵 Commit Review Panel Test Suite
+2003 9:14p 🔵 Existing Push Test Covers Only Happy Path
+2004 9:15p 🔵 Push Edge Case Tests Added to gitService.test.ts
+2005 " 🔵 Commit Review Panel Test Suite Expanded
+2006 9:16p 🔵 Test Suite Results: One Push Banner Test Fails
+S96 Audit-Fix Completion and Progress Summary (May 13 at 9:16 PM)
+2007 9:18p 🔵 Audit-Fix Workflow Pipeline
+2008 " 🔵 Source Code File Inventory
+2009 9:21p 🔵 VS Code Settings Configuration
+2012 9:23p 🔵 Commit Assistant HTML Rendering Logic
+2014 " 🔵 Commit Message Generation Logic
+S97 Error Handling Design Brainstorm and Recommendation (May 13 at 9:25 PM)
+S98 Error Handling Design Implementation Progress (May 13 at 9:27 PM)
+S99 Error Handling Layer-by-Layer Design Review (May 13 at 9:29 PM)
+S100 Error Handling Design — Three Sections Complete (May 13 at 9:29 PM)
+S101 CommitCraft AI extension — quality gate pass and configuration hardening (May 13 at 9:32 PM)
+2041 9:50p 🔴 Push notification pipeline enhanced with error handling and retry logic
+2042 " ✅ Read generateCommitMessage.ts with limit 50
+2043 " 🔴 Return createdPanel from generateCommitMessage
+2044 9:51p 🔵 Test suite passed successfully
+2045 " 🔴 Singleton panel pattern and UserInputError fix
+2046 10:07p ⚖️ Codebase scan initiated for critical issue resolution
+2047 " 🔵 Custom error hierarchy defined in errors.ts
+2048 " 🔵 Configuration settings interface and reader defined
+2049 " 🔵 GitService test suite defines comprehensive repository operations
+2050 10:10p 🔵 Commit review panel rendering tests defined
+2052 10:11p 🔴 Fix: use typed error hierarchy throughout git operations
+S102 Session started (May 13 at 10:17 PM)
+2060 10:21p 🔵 No active work session detected
+2061 10:22p 🔵 Read package.json
+2062 " ✅ Package version bumped to 0.3.1
+2063 10:23p 🟣 Push button disabled state logic implemented
+2064 " 🔵 Push readiness logic in gitService.ts
+2067 10:26p 🔵 Read commitPrompt.ts
+2068 " 🔵 Read settings.ts
+2069 " 🔵 Commit assistant UI event wiring and rendering logic
+S103 Propose implementation of UI improvements for the commit assistant extension (May 13 at 10:27 PM)
+**Investigated**: Identified pain points in the commit assistant UI and proposed features to address them
 
-Access 582k tokens of past work via get_observations([IDs]) or mem-search skill.
+**Learned**: Understood the current limitations of the commit assistant UI and the user's expectations for a better experience
+
+**Completed**: Proposed four specific UI improvements: live char counter, regenerate button, copy button, and a setting to skip commit confirmation
+
+**Next Steps**: Discussing the proposed implementation of the four UI improvements
+
+Access 652k tokens of past work via get_observations([IDs]) or mem-search skill.
 </claude-mem-context>

@@ -28,4 +28,25 @@ describe("buildCommitPrompt", () => {
     expect(prompt).toContain("Return only valid JSON");
     expect(prompt).toContain("style, perf, revert");
   });
+
+  it("renders fallback text for empty file and language lists", () => {
+    const prompt = buildCommitPrompt({
+      repositoryName: "repo",
+      branchName: "detached HEAD",
+      diff: "",
+      diffSource: "unstaged",
+      files: [],
+      languageHints: [],
+      stats: {
+        filesChanged: 0,
+        linesAdded: 0,
+        linesRemoved: 0
+      },
+      truncated: true
+    });
+
+    expect(prompt).toContain("Languages: No cheap language hints");
+    expect(prompt).toContain("Diff truncated: yes");
+    expect(prompt).toContain("Changed files:\n- none");
+  });
 });
