@@ -27,5 +27,7 @@ function readNonEmptyString(config: ConfigReader, key: string, fallback: string)
 
 function readDiffLimit(config: ConfigReader): number {
   const value = config.get<number>("maxDiffCharacters");
-  return typeof value === "number" && Number.isFinite(value) ? Math.max(1000, value) : 60000;
+  return typeof value === "number" && Number.isFinite(value)
+    ? Math.min(200_000, Math.max(1000, value))
+    : 60_000;
 }

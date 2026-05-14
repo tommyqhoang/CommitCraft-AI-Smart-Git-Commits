@@ -161,16 +161,10 @@ function classifyPushError(error: unknown): GitOperationError {
     );
   }
   if (/authentication failed|could not read username|permission denied|403/.test(stderr)) {
-    return new GitOperationError(
-      "Git authentication failed. Check your credentials.",
-      message
-    );
+    return new GitOperationError("Git authentication failed. Check your credentials.", message);
   }
   if (/could not resolve host|unable to connect|network/.test(stderr)) {
-    return new GitOperationError(
-      "Could not reach remote. Check your network connection.",
-      message
-    );
+    return new GitOperationError("Could not reach remote. Check your network connection.", message);
   }
 
   const cleaned = (error as { stderr?: string }).stderr

@@ -24,9 +24,7 @@ export const window = {
   showErrorMessage: vi.fn().mockResolvedValue(undefined),
   showInformationMessage: vi.fn().mockResolvedValue(undefined),
   showWarningMessage: vi.fn().mockResolvedValue(undefined),
-  withProgress: vi.fn((_, task: (progress: unknown) => unknown) =>
-    task({ report: vi.fn() })
-  ),
+  withProgress: vi.fn((_, task: (progress: unknown) => unknown) => task({ report: vi.fn() })),
   createWebviewPanel: vi.fn(createWebviewPanel),
   showTextDocument: vi.fn().mockResolvedValue(undefined),
   activeTextEditor: undefined

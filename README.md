@@ -63,41 +63,41 @@ Install from the [VS Code Marketplace](https://marketplace.visualstudio.com/item
 
 ## Features
 
-| | |
-|---|---|
-| **Single-command workflow** | One entry point: Command Palette, Source Control button, or status bar. |
-| **File selection** | Review and choose which safe files are sent to OpenRouter before anything is generated. |
-| **Staged-first** | Uses staged changes when they exist; falls back to safe unstaged and untracked files otherwise. |
-| **Change stats strip** | Files changed, lines added, and lines removed — visible at a glance. |
-| **Excluded file transparency** | Lists excluded files with the reason: secret-like, lockfile, binary/generated asset, or too large. |
-| **Editable message** | Generates a structured summary + multi-line description you can revise before committing. |
-| **Commit type + risk badge** | Shows the detected conventional commit type and a risk level (low / medium / high). |
-| **Activity timeline** | Tracks every commit, push, and undo performed during the session. |
-| **Undo commit** | Soft-resets the last local commit and keeps changes staged for revision. |
-| **Pending push banner** | Shows when unpushed local commits exist and offers a direct push action. |
-| **Multi-root workspace** | Prefers the workspace folder that contains the active editor. |
-| **Safe by default** | `.env`, secret-like paths, key/certificate files, lockfiles, binary assets, and oversized files are excluded from the prompt. |
+|                                |                                                                                                                               |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| **Single-command workflow**    | One entry point: Command Palette, Source Control button, or status bar.                                                       |
+| **File selection**             | Review and choose which safe files are sent to OpenRouter before anything is generated.                                       |
+| **Staged-first**               | Uses staged changes when they exist; falls back to safe unstaged and untracked files otherwise.                               |
+| **Change stats strip**         | Files changed, lines added, and lines removed — visible at a glance.                                                          |
+| **Excluded file transparency** | Lists excluded files with the reason: secret-like, lockfile, binary/generated asset, or too large.                            |
+| **Editable message**           | Generates a structured summary + multi-line description you can revise before committing.                                     |
+| **Commit type + risk badge**   | Shows the detected conventional commit type and a risk level (low / medium / high).                                           |
+| **Activity timeline**          | Tracks every commit, push, and undo performed during the session.                                                             |
+| **Undo commit**                | Soft-resets the last local commit and keeps changes staged for revision.                                                      |
+| **Pending push banner**        | Shows when unpushed local commits exist and offers a direct push action.                                                      |
+| **Multi-root workspace**       | Prefers the workspace folder that contains the active editor.                                                                 |
+| **Safe by default**            | `.env`, secret-like paths, key/certificate files, lockfiles, binary assets, and oversized files are excluded from the prompt. |
 
 ---
 
 ## Commands
 
-| Command | Purpose |
-|---|---|
-| `CommitCraft: Open Commit Assistant` | Primary workflow — review files, generate a message, commit, and push. |
-| `CommitCraft: Set OpenRouter API Token` | Save or replace your OpenRouter API key in VS Code `SecretStorage`. |
-| `CommitCraft: Clear OpenRouter API Token` | Remove the saved API key. |
+| Command                                   | Purpose                                                                |
+| ----------------------------------------- | ---------------------------------------------------------------------- |
+| `CommitCraft: Open Commit Assistant`      | Primary workflow — review files, generate a message, commit, and push. |
+| `CommitCraft: Set OpenRouter API Token`   | Save or replace your OpenRouter API key in VS Code `SecretStorage`.    |
+| `CommitCraft: Clear OpenRouter API Token` | Remove the saved API key.                                              |
 
 ---
 
 ## Settings
 
-| Setting | Default | Description |
-|---|---|---|
-| `commitCraft.openRouterModel` | `openrouter/auto` | Primary model for message generation. |
-| `commitCraft.fallbackModel` | `openrouter/free` | Fallback model used when the primary fails. |
-| `commitCraft.maxDiffCharacters` | `60000` | Max diff characters sent to OpenRouter. Larger diffs are truncated. |
-| `commitCraft.includeUntrackedFiles` | `true` | Include safe untracked text files when nothing is staged. |
+| Setting                             | Default           | Description                                                         |
+| ----------------------------------- | ----------------- | ------------------------------------------------------------------- |
+| `commitCraft.openRouterModel`       | `openrouter/auto` | Primary model for message generation.                               |
+| `commitCraft.fallbackModel`         | `openrouter/free` | Fallback model used when the primary fails.                         |
+| `commitCraft.maxDiffCharacters`     | `60000`           | Max diff characters sent to OpenRouter. Larger diffs are truncated. |
+| `commitCraft.includeUntrackedFiles` | `true`            | Include safe untracked text files when nothing is staged.           |
 
 ```json
 {

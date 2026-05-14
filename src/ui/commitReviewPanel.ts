@@ -77,10 +77,7 @@ async function handleMessage(
     } else if (message.command === "openFile" && message.path) {
       const resolvedBase = path.resolve(workspacePath);
       const resolvedTarget = path.resolve(path.join(workspacePath, message.path));
-      if (
-        resolvedTarget !== resolvedBase &&
-        !resolvedTarget.startsWith(resolvedBase + path.sep)
-      ) {
+      if (resolvedTarget !== resolvedBase && !resolvedTarget.startsWith(resolvedBase + path.sep)) {
         throw new Error("Cannot open file outside the workspace.");
       }
       const uri = vscode.Uri.file(resolvedTarget);

@@ -41,7 +41,9 @@ describe("parseCommitResponse", () => {
 
     expect(parsed.recovered).toBe(true);
     expect(parsed.message.summary).toBe("chore: invent an unsupported type");
-    expect(parsed.message.description).toBe("Uses a type outside the documented commit convention.");
+    expect(parsed.message.description).toBe(
+      "Uses a type outside the documented commit convention."
+    );
     expect(parsed.recoveryReason).toContain("unsupported commit type");
   });
 

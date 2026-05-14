@@ -86,7 +86,11 @@ function makeOpenRouterClient(
 ): OpenRouterClient {
   return {
     generateCommitMessage: vi.fn().mockResolvedValue({
-      content: JSON.stringify({ summary: "feat: add thing", description: "details", riskLevel: "low" }),
+      content: JSON.stringify({
+        summary: "feat: add thing",
+        description: "details",
+        riskLevel: "low"
+      }),
       modelUsed: "openai/gpt-4o"
     }),
     ...overrides
@@ -119,7 +123,8 @@ async function runAndCaptureHandlers(
   expect(showCommitReviewPanel).toHaveBeenCalledOnce();
   const [initialData, handlers] = vi.mocked(showCommitReviewPanel).mock.calls[0] as [
     CommitReviewData,
-    CommitReviewHandlers
+    CommitReviewHandlers,
+    string
   ];
   return { handlers, initialData };
 }
@@ -208,9 +213,9 @@ describe("generateCommitMessage", () => {
 
     it("throws NetworkError on API timeout", async () => {
       const client = makeOpenRouterClient({
-        generateCommitMessage: vi.fn().mockRejectedValue(
-          new Error("OpenRouter request timed out after 30000ms.")
-        )
+        generateCommitMessage: vi
+          .fn()
+          .mockRejectedValue(new Error("OpenRouter request timed out after 30000ms."))
       });
 
       const { handlers } = await runAndCaptureHandlers(makeGitService(), client);
@@ -219,9 +224,11 @@ describe("generateCommitMessage", () => {
 
     it("throws NetworkError with auth message on 401", async () => {
       const client = makeOpenRouterClient({
-        generateCommitMessage: vi.fn().mockRejectedValue(
-          new Error("OpenRouter returned 401: Unauthorized (authentication error)")
-        )
+        generateCommitMessage: vi
+          .fn()
+          .mockRejectedValue(
+            new Error("OpenRouter returned 401: Unauthorized (authentication error)")
+          )
       });
 
       const { handlers } = await runAndCaptureHandlers(makeGitService(), client);
@@ -309,11 +316,13 @@ describe("generateCommitMessage", () => {
     it("propagates GitOperationError with friendly message on push rejection", async () => {
       vscode.window.showWarningMessage = vi.fn().mockResolvedValue("Push");
       const git = makeGitService({
-        push: vi.fn().mockRejectedValue(
-          new GitOperationError(
-            "Push rejected — remote has commits you don't have locally. Pull first."
+        push: vi
+          .fn()
+          .mockRejectedValue(
+            new GitOperationError(
+              "Push rejected — remote has commits you don't have locally. Pull first."
+            )
           )
-        )
       });
 
       const { handlers } = await runAndCaptureHandlers(git);
@@ -424,9 +433,7 @@ describe("generateCommitMessage", () => {
       const git = makeGitService({
         undoLastCommit: vi
           .fn()
-          .mockRejectedValue(
-            new GitOperationError("Nothing to undo — no commits on this branch.")
-          )
+          .mockRejectedValue(new GitOperationError("Nothing to undo — no commits on this branch."))
       });
 
       const { handlers } = await runAndCaptureHandlers(git);

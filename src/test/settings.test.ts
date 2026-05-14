@@ -38,6 +38,14 @@ describe("readSettingsFromConfig", () => {
       get: (key) => (key === "maxDiffCharacters" ? Number.NaN : undefined) as never
     });
 
-    expect(settings.maxDiffCharacters).toBe(60000);
+    expect(settings.maxDiffCharacters).toBe(60_000);
+  });
+
+  it("clamps maxDiffCharacters to the upper bound of 200 000", () => {
+    const settings = readSettingsFromConfig({
+      get: (key) => (key === "maxDiffCharacters" ? 999_999 : undefined) as never
+    });
+
+    expect(settings.maxDiffCharacters).toBe(200_000);
   });
 });

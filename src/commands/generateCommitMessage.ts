@@ -14,7 +14,7 @@ import {
 } from "../git/diffCollector";
 import { GitService } from "../git/gitService";
 import { buildCommitPrompt } from "../openrouter/commitPrompt";
-import { OpenRouterClient } from "../openrouter/openRouterClient";
+import { OpenRouterClient, type GenerateCommitResponse } from "../openrouter/openRouterClient";
 import { parseCommitResponse, type GeneratedCommitMessage } from "../openrouter/responseParser";
 import type { CommitReviewData } from "../ui/commitReviewPanel";
 import { showCommitReviewPanel } from "../ui/commitReviewPanel";
@@ -79,10 +79,7 @@ export async function generateCommitMessage(
             return;
           }
 
-          const [hasStagedChanges, pushReadiness] = await Promise.all([
-            gitService.hasStagedChanges(workspacePath),
-            gitService.getPushReadiness(workspacePath)
-          ]);
+          const pushReadiness = await gitService.getPushReadiness(workspacePath);
           let generatedDiffContext: DiffContext | undefined;
           let generatedMessage: GeneratedCommitMessage | undefined;
           let generatedModelUsed: string | undefined;
@@ -121,7 +118,9 @@ export async function generateCommitMessage(
 
                 const token = await getOrPromptForToken(context);
                 if (!token) {
-                  throw new UserInputError("Add an OpenRouter API key to generate a commit message.");
+                  throw new UserInputError(
+                    "Add an OpenRouter API key to generate a commit message."
+                  );
                 }
 
                 const [repositoryName, branchName, languageHints] = await Promise.all([
@@ -139,8 +138,9 @@ export async function generateCommitMessage(
                   stats: selectedDiffContext.stats,
                   truncated: selectedDiffContext.truncated
                 });
-                const aiResponse = await vscode.window
-                  .withProgress(
+                let aiResponse: GenerateCommitResponse;
+                try {
+                  aiResponse = await vscode.window.withProgress(
                     {
                       location: vscode.ProgressLocation.Notification,
                       title: "CommitCraft: generating smart Git commit",
@@ -153,10 +153,10 @@ export async function generateCommitMessage(
                         fallbackModel: settings.fallbackModel,
                         prompt
                       })
-                  )
-                  .catch((err: unknown) => {
-                    throw classifyNetworkError(err);
-                  });
+                  );
+                } catch (err) {
+                  throw classifyNetworkError(err);
+                }
                 const parsed = parseCommitResponse(aiResponse.content);
                 generatedDiffContext = selectedDiffContext;
                 generatedMessage = parsed.message;
@@ -176,7 +176,9 @@ export async function generateCommitMessage(
                   recovered: parsed.recovered,
                   recoveryReason: parsed.recoveryReason,
                   canPush: freshPushReadiness.canPush,
-                  pushDisabledReason: freshPushReadiness.canPush ? undefined : freshPushReadiness.reason,
+                  pushDisabledReason: freshPushReadiness.canPush
+                    ? undefined
+                    : freshPushReadiness.reason,
                   pendingPushCount: freshPendingPushCount,
                   activityHistory
                 };
@@ -359,7 +361,9 @@ export async function generateCommitMessage(
                   currentDiffContext.diff.trim().length === 0 ||
                   currentDiffContext.files.length === 0
                 ) {
-                  throw new UserInputError("No remaining safe text changes are available to summarize.");
+                  throw new UserInputError(
+                    "No remaining safe text changes are available to summarize."
+                  );
                 }
 
                 const [nextPushReadiness, pendingPushCount] = await Promise.all([

@@ -50,7 +50,10 @@ export function parseCommitResponse(content: string): ParsedCommitResponse {
   }
 }
 
-function validateMessage(value: unknown): { message: GeneratedCommitMessage; typeCoerced: boolean } {
+function validateMessage(value: unknown): {
+  message: GeneratedCommitMessage;
+  typeCoerced: boolean;
+} {
   if (!isRecord(value)) {
     throw new Error("OpenRouter response was not a JSON object.");
   }
