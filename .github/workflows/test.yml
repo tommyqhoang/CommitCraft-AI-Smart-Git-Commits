@@ -87,7 +87,11 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Notify Slack
-        if: always() && env.SLACK_WEBHOOK_URL != ''
+        if: >-
+          always() && env.SLACK_WEBHOOK_URL != '' &&
+          (steps.install.outcome != 'success' || steps.compile.outcome != 'success' ||
+           steps.lint.outcome != 'success' || steps.format.outcome != 'success' ||
+           steps.coverage_test.outcome != 'success')
         uses: slackapi/slack-github-action@v2.0.0
         with:
           webhook: ${{ env.SLACK_WEBHOOK_URL }}
